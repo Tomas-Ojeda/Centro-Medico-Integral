@@ -1,5 +1,11 @@
 # Centro Médico Integral 🏥
 
+[![Python](https://img.shields.io/badge/Python-3.10+-3776ab?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
+[![Django](https://img.shields.io/badge/Django-4.2+-092E20?style=flat-square&logo=django&logoColor=white)](https://www.djangoproject.com/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-336791?style=flat-square&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![Docker](https://img.shields.io/badge/Docker-Enabled-2496ED?style=flat-square&logo=docker&logoColor=white)](https://www.docker.com/)
+[![Status](https://img.shields.io/badge/Status-Production%20Ready-green?style=flat-square)](https://github.com/Tomas-Ojeda/Centro-Medico-Integral)
+
 Sistema de gestión de pacientes, historias clínicas, profesionales y turnos para centros médicos en Argentina.
 
 ## Características
