@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+{% block title %}{{ titulo }} — Centro Médico{% endblock %}
+{% block nav_pacientes %}active{% endblock %}
+{% block page_title %}{{ titulo }}{% endblock %}
+{% block page_subtitle %}Paciente: {{ paciente }}{% endblock %}
+
+{% block content %}
+<div style="max-width:720px;">
+    <div class="card" style="margin-bottom:12px;padding:14px 20px;background:#f8fafc;">
+        <div style="display:flex;align-items:center;gap:12px;">
+            <div class="patient-avatar">{{ paciente.iniciales }}</div>
+            <div>
+                <div style="font-size:14px;font-weight:700;">{{ paciente }}</div>
+                <div style="font-size:12px;color:var(--text-secondary);">DNI {{ paciente.dni }} · {{ paciente.obra_social }} · {{ paciente.edad }} años</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <form method="post" enctype="multipart/form-data" novalidate>
+            {% csrf_token %}
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Profesional *</label>
+                    {{ form.profesional }}
+                    {% if form.profesional.errors %}<ul class="errorlist">{% for e in form.profesional.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+                </div>
+                <div class="form-group">
+                    <label>Fecha y Hora *</label>
+                    {{ form.fecha_hora }}
+                    {% if form.fecha_hora.errors %}<ul class="errorlist">{% for e in form.fecha_hora.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+                </div>
+                <div class="form-group full">
+                    <label>Motivo de consulta</label>
+                    {{ form.motivo }}
+                </div>
+                <div class="form-group full">
+                    <label>Diagnóstico *</label>
+                    {{ form.diagnostico }}
+                    {% if form.diagnostico.errors %}<ul class="errorlist">{% for e in form.diagnostico.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+                </div>
+                <div class="form-group full">
+                    <label>Evolución / Observaciones</label>
+                    {{ form.evolucion }}
+                </div>
+                <div class="form-group full">
+                    <label>Tratamiento indicado</label>
+                    {{ form.tratamiento }}
+                </div>
+                <div class="form-group full">
+                    <label>Archivo adjunto</label>
+                    {{ form.archivo_adjunto }}
+                </div>
+            </div>
+            <div class="form-actions">
+                <a href="{% url 'pacientes:detalle' paciente.pk %}" class="btn btn-outline">Cancelar</a>
+                <button type="submit" class="btn btn-primary">Guardar Consulta</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

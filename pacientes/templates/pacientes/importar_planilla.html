@@ -1,0 +1,498 @@
+{% extends 'base.html' %}
+{% block title %}Importar Pacientes{% endblock %}
+{% block nav_pacientes %}active{% endblock %}
+{% block page_title %}Importar Pacientes{% endblock %}
+{% block page_subtitle %}Desde foto de planilla, archivo Excel o CSV{% endblock %}
+{% block header_action %}
+<a href="{% url 'pacientes:lista' %}" class="btn btn-outline">← Volver</a>
+{% endblock %}
+
+{% block content %}
+<style>
+:root { --import-gap: 20px; }
+.tabs { display:flex; gap:4px; margin-bottom:20px; }
+.tab-btn {
+    padding:10px 20px; border-radius:8px; border:1px solid var(--border);
+    background:transparent; cursor:pointer; font-size:14px; font-weight:500;
+    color:var(--text-secondary); transition:all .15s;
+}
+.tab-btn.active { background:var(--sidebar-bg); color:#fff; border-color:var(--sidebar-bg); }
+.tab-panel { display:none; }
+.tab-panel.active { display:block; }
+
+.drop-zone {
+    border:2px dashed var(--border); border-radius:12px; padding:44px 24px;
+    text-align:center; cursor:pointer; transition:all .2s; background:var(--bg-main);
+    position:relative;
+}
+.drop-zone:hover, .drop-zone.drag-over { border-color:var(--sidebar-bg); background:#eef2ff; }
+.drop-zone.loaded { border-color:#16a34a; background:#f0fdf4; }
+.drop-icon { font-size:44px; margin-bottom:12px; }
+.drop-title { font-size:15px; font-weight:600; color:var(--text-primary); margin-bottom:4px; }
+.drop-sub { font-size:13px; color:var(--text-secondary); }
+.preview-img { max-width:100%; max-height:260px; border-radius:8px; margin-top:14px;
+    box-shadow:0 4px 16px rgba(0,0,0,.12); }
+
+.spinner { display:inline-block; width:17px; height:17px; border:2px solid #e2e8f0;
+    border-top-color:var(--sidebar-bg); border-radius:50%; animation:spin .7s linear infinite;
+    vertical-align:middle; margin-right:7px; }
+@keyframes spin { to { transform:rotate(360deg); } }
+
+.tbl { width:100%; border-collapse:collapse; font-size:13px; }
+.tbl th { background:var(--bg-main); padding:9px 11px; text-align:left; font-size:11px;
+    text-transform:uppercase; letter-spacing:.05em; color:var(--text-secondary);
+    border-bottom:1px solid var(--border); white-space:nowrap; }
+.tbl td { padding:9px 11px; border-bottom:1px solid var(--border); vertical-align:middle; }
+.tbl tr:last-child td { border-bottom:none; }
+.tbl tr.off td { opacity:.4; }
+
+.cel { border:1px solid transparent; border-radius:4px; padding:3px 5px;
+    background:transparent; font-size:13px; width:100%; color:var(--text-primary);
+    font-family:inherit; }
+.cel:hover { border-color:var(--border); background:var(--bg-main); }
+.cel:focus { outline:none; border-color:var(--sidebar-bg); background:#fff; }
+.cel.err { border-color:#fca5a5!important; background:#fef2f2!important; }
+
+.badge-conf-alta  { color:#16a34a; font-weight:600; font-size:12px; }
+.badge-conf-media { color:#d97706; font-weight:600; font-size:12px; }
+.badge-conf-baja  { color:#dc2626; font-weight:600; font-size:12px; }
+
+.alerta { border-radius:8px; padding:14px 18px; margin-bottom:16px; font-size:13px; }
+.alerta-ok  { background:#f0fdf4; border:1px solid #bbf7d0; color:#15803d; }
+.alerta-err { background:#fef2f2; border:1px solid #fecaca; color:#dc2626; white-space:pre-line; }
+.alerta-warn{ background:#fffbeb; border:1px solid #fde68a; color:#92400e; }
+
+.instruccion { display:flex; align-items:flex-start; gap:10px; padding:8px 0;
+    font-size:13px; color:var(--text-secondary); }
+.instruccion .num { width:24px; height:24px; border-radius:50%; background:var(--sidebar-bg);
+    color:#fff; display:flex; align-items:center; justify-content:center;
+    font-size:12px; font-weight:700; flex-shrink:0; margin-top:1px; }
+
+details { margin-top:10px; }
+summary { cursor:pointer; font-size:12px; color:var(--text-secondary); }
+pre { background:var(--bg-main); padding:10px; border-radius:6px; font-size:11px;
+    overflow-x:auto; margin-top:6px; white-space:pre-wrap; max-height:200px; overflow-y:auto; }
+
+#zona-resultado, #zona-final { display:none; }
+</style>
+
+<!-- INSTRUCCIONES -->
+<div class="card" style="margin-bottom:var(--import-gap);">
+    <div class="card-title" style="margin-bottom:10px;">¿Cómo funciona?</div>
+    <div class="instruccion"><div class="num">1</div>Elegí el tipo de archivo: foto de planilla, Excel o CSV.</div>
+    <div class="instruccion"><div class="num">2</div>Subís el archivo y el sistema extrae todos los pacientes automáticamente.</div>
+    <div class="instruccion"><div class="num">3</div>Revisás los datos en la tabla — podés editar cualquier celda con un click.</div>
+    <div class="instruccion"><div class="num">4</div>Confirmás y todos los pacientes seleccionados se cargan de una sola vez.</div>
+    <div class="alerta alerta-warn" style="margin-top:12px;margin-bottom:0;">
+        💡 <strong>Foto de planilla:</strong> funciona para impresas Y manuscritas (usa IA). 
+        <strong>Excel/CSV:</strong> el archivo debe tener encabezados en la primera fila con nombres como "Apellido", "Nombre", "DNI", etc.
+    </div>
+</div>
+
+<!-- TABS -->
+<div class="tabs">
+    <button class="tab-btn active" onclick="cambiarTab('foto')">📷 Foto de planilla</button>
+    <button class="tab-btn" onclick="cambiarTab('excel')">📊 Excel (.xlsx)</button>
+    <button class="tab-btn" onclick="cambiarTab('csv')">📄 CSV</button>
+</div>
+
+<!-- TAB FOTO -->
+<div class="tab-panel active card" id="tab-foto" style="margin-bottom:var(--import-gap);">
+    <div class="card-title" style="margin-bottom:14px;">📷 Foto o escaneo de planilla</div>
+    <div class="drop-zone" id="drop-foto" onclick="document.getElementById('inp-foto').click()">
+        <div id="drop-foto-estado">
+            <div class="drop-icon">🖼️</div>
+            <div class="drop-title">Hacé click o arrastrá la imagen acá</div>
+            <div class="drop-sub">JPG, PNG o WEBP · Máximo 20 MB · Impresa o manuscrita</div>
+        </div>
+        <img id="preview-foto" class="preview-img" style="display:none;" alt="Preview">
+    </div>
+    <input type="file" id="inp-foto" accept="image/jpeg,image/png,image/webp" style="display:none;">
+    <div style="display:flex;gap:10px;margin-top:14px;align-items:center;flex-wrap:wrap;">
+        <button class="btn btn-primary" id="btn-foto" disabled onclick="procesarFoto()">🔍 Analizar con IA</button>
+        <button class="btn btn-outline" id="btn-foto-reset" style="display:none;" onclick="resetFoto()">Cambiar imagen</button>
+        <span id="estado-foto" style="font-size:13px;color:var(--text-secondary);"></span>
+    </div>
+</div>
+
+<!-- TAB EXCEL -->
+<div class="tab-panel card" id="tab-excel" style="margin-bottom:var(--import-gap);">
+    <div class="card-title" style="margin-bottom:14px;">📊 Archivo Excel</div>
+    <div class="drop-zone" id="drop-excel" onclick="document.getElementById('inp-excel').click()">
+        <div id="drop-excel-estado">
+            <div class="drop-icon">📊</div>
+            <div class="drop-title">Hacé click o arrastrá el archivo Excel acá</div>
+            <div class="drop-sub">.xlsx · Máximo 10 MB · Primera fila = encabezados</div>
+        </div>
+        <div id="excel-nombre" style="display:none;padding:20px;font-size:14px;font-weight:600;color:#16a34a;"></div>
+    </div>
+    <input type="file" id="inp-excel" accept=".xlsx,.xls" style="display:none;">
+    <div style="margin-top:12px;font-size:12px;color:var(--text-secondary);">
+        Encabezados esperados (no hace falta que sean exactos): <code>Apellido, Nombre, DNI, Fecha Nacimiento, Teléfono, Email, Dirección, Obra Social</code>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:14px;align-items:center;">
+        <button class="btn btn-primary" id="btn-excel" disabled onclick="procesarExcel()">📥 Importar Excel</button>
+        <button class="btn btn-outline" id="btn-excel-reset" style="display:none;" onclick="resetExcel()">Cambiar archivo</button>
+        <span id="estado-excel" style="font-size:13px;color:var(--text-secondary);"></span>
+    </div>
+</div>
+
+<!-- TAB CSV -->
+<div class="tab-panel card" id="tab-csv" style="margin-bottom:var(--import-gap);">
+    <div class="card-title" style="margin-bottom:14px;">📄 Archivo CSV</div>
+    <div class="drop-zone" id="drop-csv" onclick="document.getElementById('inp-csv').click()">
+        <div id="drop-csv-estado">
+            <div class="drop-icon">📄</div>
+            <div class="drop-title">Hacé click o arrastrá el archivo CSV acá</div>
+            <div class="drop-sub">.csv · Separado por coma o punto y coma · Primera fila = encabezados</div>
+        </div>
+        <div id="csv-nombre" style="display:none;padding:20px;font-size:14px;font-weight:600;color:#16a34a;"></div>
+    </div>
+    <input type="file" id="inp-csv" accept=".csv,text/csv" style="display:none;">
+    <div style="display:flex;gap:10px;margin-top:14px;align-items:center;">
+        <button class="btn btn-primary" id="btn-csv" disabled onclick="procesarCSV()">📥 Importar CSV</button>
+        <button class="btn btn-outline" id="btn-csv-reset" style="display:none;" onclick="resetCSV()">Cambiar archivo</button>
+        <span id="estado-csv" style="font-size:13px;color:var(--text-secondary);"></span>
+    </div>
+</div>
+
+<!-- TABLA DE RESULTADOS -->
+<div id="zona-resultado" class="card" style="margin-bottom:var(--import-gap);">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px;">
+        <div>
+            <div class="card-title">✅ Pacientes detectados</div>
+            <div style="font-size:13px;color:var(--text-secondary);margin-top:3px;">
+                Hacé click en cualquier celda para corregir. Los DNI marcados en rojo necesitan revisión.
+            </div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <span id="contador" style="font-size:13px;color:var(--text-secondary);"></span>
+            <button class="btn btn-outline btn-sm" onclick="toggleTodos(true)">Seleccionar todos</button>
+            <button class="btn btn-outline btn-sm" onclick="toggleTodos(false)">Deseleccionar todos</button>
+        </div>
+    </div>
+
+    <div style="overflow-x:auto;">
+        <table class="tbl">
+            <thead>
+                <tr>
+                    <th style="width:34px;">✓</th>
+                    <th>Apellido</th>
+                    <th>Nombre</th>
+                    <th>DNI</th>
+                    <th>Fecha Nac.</th>
+                    <th>Teléfono</th>
+                    <th>Obra Social</th>
+                    <th>Confianza</th>
+                </tr>
+            </thead>
+            <tbody id="tbody"></tbody>
+        </table>
+    </div>
+    <div id="debug-ocr"></div>
+    <div style="display:flex;gap:10px;margin-top:18px;">
+        <button class="btn btn-primary" onclick="confirmar()">💾 Importar seleccionados</button>
+        <button class="btn btn-outline" onclick="cancelarTabla()">Cancelar</button>
+    </div>
+</div>
+
+<!-- RESULTADO FINAL -->
+<div id="zona-final"></div>
+
+<script>
+const OBRAS = ['OSDE','OSEP','Swiss Medical','Medicus','Galeno','IOMA','Particular','Otro'];
+let pacientes = [];
+let fotoB64 = null, fotoMime = 'image/jpeg';
+let excelB64 = null;
+let csvB64 = null;
+
+// ── Tabs ───────────────────────────────────────────────────────
+function cambiarTab(tab) {
+    document.querySelectorAll('.tab-btn').forEach((b,i) => {
+        b.classList.toggle('active', ['foto','excel','csv'][i] === tab);
+    });
+    document.querySelectorAll('.tab-panel').forEach((p,i) => {
+        p.classList.toggle('active', ['tab-foto','tab-excel','tab-csv'][i] === 'tab-'+tab);
+    });
+}
+
+// ── Drag & Drop genérico ───────────────────────────────────────
+function setupDrop(dropId, inputId, onFile) {
+    const zona = document.getElementById(dropId);
+    zona.addEventListener('dragover',  e => { e.preventDefault(); zona.classList.add('drag-over'); });
+    zona.addEventListener('dragleave', () => zona.classList.remove('drag-over'));
+    zona.addEventListener('drop', e => {
+        e.preventDefault(); zona.classList.remove('drag-over');
+        if (e.dataTransfer.files[0]) onFile(e.dataTransfer.files[0]);
+    });
+    document.getElementById(inputId).addEventListener('change', e => {
+        if (e.target.files[0]) onFile(e.target.files[0]);
+    });
+}
+
+function leerBase64(file) {
+    return new Promise((res, rej) => {
+        const r = new FileReader();
+        r.onload = e => res(e.target.result.split(',')[1]);
+        r.onerror = rej;
+        r.readAsDataURL(file);
+    });
+}
+
+// ── FOTO ───────────────────────────────────────────────────────
+setupDrop('drop-foto', 'inp-foto', async file => {
+    if (file.size > 20*1024*1024) { alert('Máximo 20 MB'); return; }
+    fotoMime = file.type || 'image/jpeg';
+    fotoB64  = await leerBase64(file);
+    const preview = document.getElementById('preview-foto');
+    preview.src = 'data:' + fotoMime + ';base64,' + fotoB64;
+    preview.style.display = 'block';
+    document.getElementById('drop-foto-estado').style.display = 'none';
+    document.getElementById('drop-foto').classList.add('loaded');
+    document.getElementById('btn-foto').disabled = false;
+    document.getElementById('btn-foto-reset').style.display = 'inline-flex';
+});
+
+async function procesarFoto() {
+    setEstado('foto', '<span class="spinner"></span> Claude está analizando la planilla...');
+    document.getElementById('btn-foto').disabled = true;
+    try {
+        const data = await llamarAPI({ tipo:'imagen', archivo_b64: fotoB64, media_type: fotoMime });
+        mostrarTabla(data.pacientes);
+        setEstado('foto', '');
+    } catch(e) {
+        setEstado('foto', '');
+        mostrarError('foto', e.message);
+        document.getElementById('btn-foto').disabled = false;
+    }
+}
+
+function resetFoto() {
+    fotoB64 = null;
+    document.getElementById('preview-foto').style.display = 'none';
+    document.getElementById('drop-foto-estado').style.display = 'block';
+    document.getElementById('drop-foto').classList.remove('loaded');
+    document.getElementById('btn-foto').disabled = true;
+    document.getElementById('btn-foto-reset').style.display = 'none';
+    document.getElementById('inp-foto').value = '';
+    setEstado('foto', '');
+    limpiarError('foto');
+}
+
+// ── EXCEL ──────────────────────────────────────────────────────
+setupDrop('drop-excel', 'inp-excel', async file => {
+    if (file.size > 10*1024*1024) { alert('Máximo 10 MB'); return; }
+    excelB64 = await leerBase64(file);
+    document.getElementById('drop-excel-estado').style.display = 'none';
+    const nom = document.getElementById('excel-nombre');
+    nom.textContent = '✅ ' + file.name;
+    nom.style.display = 'block';
+    document.getElementById('drop-excel').classList.add('loaded');
+    document.getElementById('btn-excel').disabled = false;
+    document.getElementById('btn-excel-reset').style.display = 'inline-flex';
+});
+
+async function procesarExcel() {
+    setEstado('excel', '<span class="spinner"></span> Leyendo Excel...');
+    document.getElementById('btn-excel').disabled = true;
+    try {
+        const data = await llamarAPI({ tipo:'excel', archivo_b64: excelB64 });
+        mostrarTabla(data.pacientes);
+        setEstado('excel', '');
+    } catch(e) {
+        setEstado('excel', '');
+        mostrarError('excel', e.message);
+        document.getElementById('btn-excel').disabled = false;
+    }
+}
+
+function resetExcel() {
+    excelB64 = null;
+    document.getElementById('drop-excel-estado').style.display = 'block';
+    document.getElementById('excel-nombre').style.display = 'none';
+    document.getElementById('drop-excel').classList.remove('loaded');
+    document.getElementById('btn-excel').disabled = true;
+    document.getElementById('btn-excel-reset').style.display = 'none';
+    document.getElementById('inp-excel').value = '';
+    setEstado('excel', '');
+    limpiarError('excel');
+}
+
+// ── CSV ────────────────────────────────────────────────────────
+setupDrop('drop-csv', 'inp-csv', async file => {
+    csvB64 = await leerBase64(file);
+    document.getElementById('drop-csv-estado').style.display = 'none';
+    const nom = document.getElementById('csv-nombre');
+    nom.textContent = '✅ ' + file.name;
+    nom.style.display = 'block';
+    document.getElementById('drop-csv').classList.add('loaded');
+    document.getElementById('btn-csv').disabled = false;
+    document.getElementById('btn-csv-reset').style.display = 'inline-flex';
+});
+
+async function procesarCSV() {
+    setEstado('csv', '<span class="spinner"></span> Leyendo CSV...');
+    document.getElementById('btn-csv').disabled = true;
+    try {
+        const data = await llamarAPI({ tipo:'csv', archivo_b64: csvB64 });
+        mostrarTabla(data.pacientes);
+        setEstado('csv', '');
+    } catch(e) {
+        setEstado('csv', '');
+        mostrarError('csv', e.message);
+        document.getElementById('btn-csv').disabled = false;
+    }
+}
+
+function resetCSV() {
+    csvB64 = null;
+    document.getElementById('drop-csv-estado').style.display = 'block';
+    document.getElementById('csv-nombre').style.display = 'none';
+    document.getElementById('drop-csv').classList.remove('loaded');
+    document.getElementById('btn-csv').disabled = true;
+    document.getElementById('btn-csv-reset').style.display = 'none';
+    document.getElementById('inp-csv').value = '';
+    setEstado('csv', '');
+    limpiarError('csv');
+}
+
+// ── API call ───────────────────────────────────────────────────
+async function llamarAPI(body) {
+    const resp = await fetch("{% url 'pacientes:importar' %}", {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json', 'X-CSRFToken':'{{ csrf_token }}' },
+        body: JSON.stringify(body)
+    });
+    const data = await resp.json();
+    if (data.error) throw new Error(data.error);
+    if (!data.pacientes || data.pacientes.length === 0)
+        throw new Error('No se detectaron pacientes. Revisá que el archivo tenga datos válidos.');
+    return data;
+}
+
+// ── Tabla ──────────────────────────────────────────────────────
+function mostrarTabla(lista) {
+    pacientes = lista.map(p => ({...p, _excluido: false}));
+    const tbody = document.getElementById('tbody');
+    tbody.innerHTML = '';
+
+    pacientes.forEach((p, i) => {
+        const conf  = p.confianza || 5;
+        const cls   = conf >= 7 ? 'badge-conf-alta' : conf >= 5 ? 'badge-conf-media' : 'badge-conf-baja';
+        const lbl   = conf >= 7 ? '● Alta' : conf >= 5 ? '● Media' : '● Baja';
+        const dniOk = /^\d{7,8}$/.test(p.dni || '');
+        const opts  = OBRAS.map(o => `<option ${(p.obra_social||'Otro')===o?'selected':''}>${o}</option>`).join('');
+        const tr = document.createElement('tr');
+        tr.dataset.i = i;
+        tr.innerHTML = `
+          <td><input type="checkbox" checked onchange="toggleFila(this,${i})" style="width:15px;height:15px;cursor:pointer;"></td>
+          <td><input class="cel" value="${e(p.apellido)}" onchange="pacientes[${i}].apellido=this.value"></td>
+          <td><input class="cel" value="${e(p.nombre)}"   onchange="pacientes[${i}].nombre=this.value"></td>
+          <td><input class="cel${dniOk?'':' err'}" value="${e(p.dni)}" inputmode="numeric"
+                oninput="this.value=this.value.replace(/[^0-9]/g,'')"
+                onchange="pacientes[${i}].dni=this.value;this.classList.toggle('err',!/^\\d{7,8}$/.test(this.value))"
+                style="max-width:85px;"></td>
+          <td><input class="cel" type="date" value="${e(p.fecha_nacimiento)}" onchange="pacientes[${i}].fecha_nacimiento=this.value" style="max-width:135px;"></td>
+          <td><input class="cel" value="${e(p.telefono)}" onchange="pacientes[${i}].telefono=this.value"></td>
+          <td><select class="cel" onchange="pacientes[${i}].obra_social=this.value" style="max-width:125px;">${opts}</select></td>
+          <td><span class="${cls}">${lbl}</span></td>`;
+        tbody.appendChild(tr);
+    });
+
+    actualizarContador();
+    document.getElementById('zona-resultado').style.display = 'block';
+    document.getElementById('zona-resultado').scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+function e(v) { return (v||'').toString().replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+
+function toggleFila(cb, i) {
+    pacientes[i]._excluido = !cb.checked;
+    document.querySelector(`tr[data-i="${i}"]`).classList.toggle('off', !cb.checked);
+    actualizarContador();
+}
+
+function toggleTodos(estado) {
+    document.querySelectorAll('#tbody input[type=checkbox]').forEach((cb,i) => {
+        cb.checked = estado; toggleFila(cb,i);
+    });
+}
+
+function actualizarContador() {
+    const sel = pacientes.filter(p=>!p._excluido).length;
+    document.getElementById('contador').textContent = `${sel} de ${pacientes.length} seleccionados`;
+}
+
+function cancelarTabla() {
+    document.getElementById('zona-resultado').style.display = 'none';
+    pacientes = [];
+}
+
+// ── Confirmar ──────────────────────────────────────────────────
+async function confirmar() {
+    const sel = pacientes.filter(p=>!p._excluido);
+    if (!sel.length) { alert('No hay pacientes seleccionados.'); return; }
+    if (!confirm(`¿Importar ${sel.length} paciente(s) al sistema?`)) return;
+
+    const zf = document.getElementById('zona-final');
+    zf.style.display = 'block';
+    zf.innerHTML = `<div class="card"><span class="spinner"></span> Guardando ${sel.length} pacientes...</div>`;
+    zf.scrollIntoView({behavior:'smooth'});
+
+    try {
+        const resp = await fetch("{% url 'pacientes:guardar_importados' %}", {
+            method:'POST',
+            headers:{'Content-Type':'application/json','X-CSRFToken':'{{ csrf_token }}'},
+            body: JSON.stringify({pacientes: sel})
+        });
+        const data = await resp.json();
+        if (data.error) { zf.innerHTML=`<div class="alerta alerta-err">❌ ${data.error}</div>`; return; }
+
+        let html = `<div class="alerta alerta-ok">
+            ✅ <strong>¡Importación completada!</strong><br>
+            Se cargaron <strong>${data.creados}</strong> paciente(s) correctamente.
+        </div>`;
+
+        if (data.errores?.length) {
+            html += `<div class="card" style="margin-bottom:16px;">
+                <div class="card-title" style="color:#dc2626;margin-bottom:10px;">
+                    ⚠️ ${data.errores.length} no importado(s):
+                </div>
+                <table class="tbl"><thead><tr><th>Nombre</th><th>DNI</th><th>Motivo</th></tr></thead><tbody>`;
+            data.errores.forEach(err => {
+                html += `<tr><td>${err.nombre||'—'}</td><td>${err.dni||'—'}</td>
+                    <td style="color:#dc2626;">${err.error}</td></tr>`;
+            });
+            html += `</tbody></table></div>`;
+        }
+
+        html += `<div style="display:flex;gap:10px;">
+            <a href="{% url 'pacientes:lista' %}" class="btn btn-primary">Ver lista de pacientes</a>
+            <button class="btn btn-outline" onclick="location.reload()">Importar más</button>
+        </div>`;
+
+        zf.innerHTML = html;
+        document.getElementById('zona-resultado').style.display = 'none';
+
+    } catch(err) {
+        zf.innerHTML = `<div class="alerta alerta-err">❌ ${err.message}</div>`;
+    }
+}
+
+// ── Helpers UI ─────────────────────────────────────────────────
+function setEstado(tipo, html) {
+    document.getElementById('estado-'+tipo).innerHTML = html;
+}
+function mostrarError(tipo, msg) {
+    limpiarError(tipo);
+    const div = document.createElement('div');
+    div.className = 'alerta alerta-err'; div.id = 'err-'+tipo;
+    div.style.marginTop = '12px'; div.textContent = msg;
+    document.getElementById('tab-'+tipo).appendChild(div);
+}
+function limpiarError(tipo) {
+    const old = document.getElementById('err-'+tipo);
+    if (old) old.remove();
+}
+</script>
+{% endblock %}

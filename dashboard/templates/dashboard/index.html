@@ -1,0 +1,154 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard — Centro Médico Integral{% endblock %}
+{% block nav_dashboard %}active{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+{% block page_subtitle %}Resumen del día · {{ hoy|date:"l d \d\e F, Y" }}{% endblock %}
+
+{% block content %}
+
+<!-- STATS CARDS -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-icon blue">👤</div>
+        <div>
+            <div class="stat-value">{{ total_pacientes }}</div>
+            <div class="stat-label">Pacientes registrados</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon green">🩺</div>
+        <div>
+            <div class="stat-value">{{ total_profesionales }}</div>
+            <div class="stat-label">Profesionales activos</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon amber">📅</div>
+        <div>
+            <div class="stat-value">{{ turnos_hoy }}</div>
+            <div class="stat-label">Turnos hoy</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon purple">⏳</div>
+        <div>
+            <div class="stat-value">{{ turnos_pendientes }}</div>
+            <div class="stat-label">Pendientes de confirmar</div>
+        </div>
+    </div>
+</div>
+
+<!-- RESUMEN SEMANAL -->
+<div class="card" style="margin-bottom:20px;">
+    <div class="card-header">
+        <span class="card-title">📊 Turnos esta semana</span>
+        <a href="{% url 'turnos:agenda' %}" class="btn btn-outline btn-sm">Ver agenda</a>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-top:8px;">
+        {% for dia in semana %}
+        <a href="{% url 'turnos:agenda' %}?fecha={{ dia.fecha|date:'Y-m-d' }}"
+           style="text-decoration:none;text-align:center;padding:10px 6px;border-radius:8px;border:1px solid {% if dia.es_hoy %}var(--sidebar-bg){% else %}var(--border){% endif %};background:{% if dia.es_hoy %}#eef2ff{% else %}transparent{% endif %};">
+            <div style="font-size:11px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;">{{ dia.nombre }}</div>
+            <div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px;">{{ dia.fecha|date:"d/m" }}</div>
+            <div style="font-size:22px;font-weight:700;color:{% if dia.es_hoy %}var(--sidebar-bg){% else %}var(--text-primary){% endif %};">{{ dia.total }}</div>
+            {% if dia.realizados > 0 %}
+            <div style="font-size:10px;color:#16a34a;margin-top:2px;">✓ {{ dia.realizados }}</div>
+            {% endif %}
+        </a>
+        {% endfor %}
+    </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+
+    <!-- TURNOS HOY -->
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">📅 Turnos de hoy</span>
+            <a href="{% url 'turnos:agenda' %}" class="btn btn-outline btn-sm">Ver todos</a>
+        </div>
+        {% if turnos_hoy_lista %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Hora</th>
+                    <th>Paciente</th>
+                    <th>Profesional</th>
+                    <th>Estado</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for turno in turnos_hoy_lista %}
+                <tr>
+                    <td><strong>{{ turno.fecha_hora|date:"H:i" }}</strong></td>
+                    <td>{{ turno.paciente.apellido }}, {{ turno.paciente.nombre }}</td>
+                    <td>{{ turno.profesional.apellido }}</td>
+                    <td><span class="badge badge-{{ turno.estado }}">{{ turno.get_estado_display }}</span></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state" style="padding:30px 0;">
+            <div class="icon">📭</div>
+            <p>No hay turnos programados para hoy.</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- PANEL DERECHO -->
+    <div>
+        <!-- ACCESOS RÁPIDOS -->
+        <div class="card" style="margin-bottom:16px;">
+            <div class="card-title" style="margin-bottom:14px;">⚡ Accesos rápidos</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                <a href="{% url 'pacientes:crear' %}" class="btn btn-primary" style="justify-content:center;">+ Nuevo Paciente</a>
+                <a href="{% url 'turnos:crear' %}" class="btn btn-accent" style="justify-content:center;">+ Nuevo Turno</a>
+                <a href="{% url 'profesionales:crear' %}" class="btn btn-outline" style="justify-content:center;">+ Profesional</a>
+                <a href="{% url 'turnos:agenda' %}" class="btn btn-outline" style="justify-content:center;">📅 Ver Agenda</a>
+            </div>
+        </div>
+
+        <!-- TURNOS MAÑANA -->
+        <div class="card" style="margin-bottom:16px;">
+            <div class="card-header">
+                <span class="card-title">🌅 Mañana ({{ count_manana }} turno{{ count_manana|pluralize }})</span>
+                <a href="{% url 'turnos:agenda' %}?fecha={{ hoy|date:'Y-m-d' }}" class="btn btn-outline btn-sm">Ver</a>
+            </div>
+            {% if turnos_manana %}
+            {% for turno in turnos_manana %}
+            <div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px;">
+                <strong style="min-width:38px;">{{ turno.fecha_hora|date:"H:i" }}</strong>
+                <span style="flex:1;">{{ turno.paciente.apellido }}, {{ turno.paciente.nombre }}</span>
+                <span style="color:var(--text-secondary);">{{ turno.profesional.apellido }}</span>
+            </div>
+            {% endfor %}
+            {% else %}
+            <p style="color:var(--text-secondary);font-size:13px;margin-top:8px;">Sin turnos para mañana.</p>
+            {% endif %}
+        </div>
+
+        <!-- PACIENTES RECIENTES -->
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">🕐 Pacientes recientes</span>
+                <a href="{% url 'pacientes:lista' %}" class="btn btn-outline btn-sm">Ver todos</a>
+            </div>
+            {% for paciente in pacientes_recientes %}
+            <div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--border);">
+                <div class="patient-avatar" style="width:36px;height:36px;font-size:13px;">{{ paciente.iniciales }}</div>
+                <div style="flex:1;min-width:0;">
+                    <div style="font-size:13px;font-weight:600;">{{ paciente.apellido }}, {{ paciente.nombre }}</div>
+                    <div style="font-size:11px;color:var(--text-secondary);">DNI {{ paciente.dni }} · {{ paciente.obra_social }}</div>
+                </div>
+                <a href="{% url 'pacientes:detalle' paciente.pk %}" class="btn btn-outline btn-sm">Ver</a>
+            </div>
+            {% empty %}
+            <p style="color:var(--text-secondary);font-size:13px;">Sin pacientes registrados aún.</p>
+            {% endfor %}
+        </div>
+    </div>
+
+</div>
+{% endblock %}

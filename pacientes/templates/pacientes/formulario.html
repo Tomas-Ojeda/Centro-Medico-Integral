@@ -1,0 +1,97 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ titulo }} — Centro Médico{% endblock %}
+{% block nav_pacientes %}active{% endblock %}
+{% block page_title %}{{ titulo }}{% endblock %}
+{% block page_subtitle %}Complete los datos del paciente{% endblock %}
+
+{% block content %}
+<div style="max-width:720px;">
+    <div class="card">
+        <form method="post" novalidate>
+            {% csrf_token %}
+
+            <div style="margin-bottom:20px;">
+                <h3 style="font-size:14px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.05em;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid var(--border);">
+                    Identificación
+                </h3>
+                <div class="form-grid cols-3">
+                    <div class="form-group">
+                        <label for="{{ form.dni.id_for_label }}">DNI *</label>
+                        {{ form.dni }}
+                        {% if form.dni.errors %}<ul class="errorlist">{% for e in form.dni.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+                    </div>
+                    <div class="form-group">
+                        <label for="{{ form.numero_socio.id_for_label }}">Nº de Socio</label>
+                        {{ form.numero_socio }}
+                        {% if form.numero_socio.errors %}<ul class="errorlist">{% for e in form.numero_socio.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+                    </div>
+                    <div class="form-group">
+                        <label for="{{ form.obra_social.id_for_label }}">Obra Social</label>
+                        {{ form.obra_social }}
+                    </div>
+                </div>
+            </div>
+
+            <div style="margin-bottom:20px;">
+                <h3 style="font-size:14px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.05em;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid var(--border);">
+                    Datos Personales
+                </h3>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="{{ form.apellido.id_for_label }}">Apellido *</label>
+                        {{ form.apellido }}
+                        {% if form.apellido.errors %}<ul class="errorlist">{% for e in form.apellido.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+                    </div>
+                    <div class="form-group">
+                        <label for="{{ form.nombre.id_for_label }}">Nombre *</label>
+                        {{ form.nombre }}
+                        {% if form.nombre.errors %}<ul class="errorlist">{% for e in form.nombre.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+                    </div>
+                    <div class="form-group">
+                        <label for="{{ form.fecha_nacimiento.id_for_label }}">Fecha de Nacimiento *</label>
+                        {{ form.fecha_nacimiento }}
+                        {% if form.fecha_nacimiento.errors %}<ul class="errorlist">{% for e in form.fecha_nacimiento.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+                    </div>
+                    <div class="form-group">
+                        <label for="{{ form.telefono.id_for_label }}">Teléfono</label>
+                        {{ form.telefono }}
+                    </div>
+                    <div class="form-group">
+                        <label for="{{ form.email.id_for_label }}">Email</label>
+                        {{ form.email }}
+                        {% if form.email.errors %}<ul class="errorlist">{% for e in form.email.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+                    </div>
+                    <div class="form-group">
+                        <label for="{{ form.direccion.id_for_label }}">Dirección</label>
+                        {{ form.direccion }}
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <a href="{% url 'pacientes:lista' %}" class="btn btn-outline">Cancelar</a>
+                <button type="submit" class="btn btn-primary">{{ accion }}</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const dniInput = document.getElementById('{{ form.dni.id_for_label }}');
+    if (dniInput) {
+        dniInput.addEventListener('keypress', function(e) {
+            if (!/[0-9]/.test(e.key) && !['Backspace','Delete','Tab','ArrowLeft','ArrowRight'].includes(e.key)) {
+                e.preventDefault();
+            }
+        });
+        dniInput.addEventListener('input', function() {
+            this.value = this.value.replace(/[^0-9]/g, '');
+        });
+    }
+});
+</script>
+{% endblock %}

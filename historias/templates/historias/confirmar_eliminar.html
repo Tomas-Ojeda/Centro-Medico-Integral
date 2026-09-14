@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% block title %}Eliminar Consulta{% endblock %}
+{% block nav_pacientes %}active{% endblock %}
+{% block page_title %}Eliminar Consulta{% endblock %}
+
+{% block content %}
+<div style="max-width:480px;margin:0 auto;">
+    <div class="card" style="text-align:center;padding:40px 32px;">
+        <div style="font-size:56px;margin-bottom:16px;">⚠️</div>
+        <h2 style="font-size:18px;font-weight:700;margin-bottom:8px;">¿Eliminar consulta?</h2>
+        <p style="color:var(--text-secondary);font-size:14px;margin-bottom:24px;">
+            {{ object.fecha_hora|date:"d/m/Y H:i" }} · {{ object.profesional }}<br>
+            <strong>{{ object.diagnostico|truncatechars:80 }}</strong>
+        </p>
+        <form method="post" style="display:flex;gap:12px;justify-content:center;">
+            {% csrf_token %}
+            <a href="{% url 'pacientes:detalle' object.paciente_id %}" class="btn btn-outline">Cancelar</a>
+            <button type="submit" class="btn btn-danger" style="background:#ef4444;color:#fff;border:none;">Eliminar</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,44 @@
+# Sensibilidades absoluta
+.env
+.env.local
+.env*.local
+*.key
+*.pem
+
+# Secretos de Django
+consultorio_salto/settings_prod.py
+
+# Credenciales de BD
+docker/db_creds*
+
+# Datos de BD y backups
+db.sqlite3
+docker/backups/
+*.sql
+*.sql.gz
+
+# Archivos temporales
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+*.egg-info/
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Datos de usuarios (sensibles)
+media/
+!media/.gitkeep
+
+# OS
+.DS_Store
+Thumbs.db

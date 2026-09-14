@@ -1,0 +1,109 @@
+{% extends 'base.html' %}
+
+{% block title %}Staff Médico — Centro Médico{% endblock %}
+{% block nav_profesionales %}active{% endblock %}
+{% block page_title %}Staff Médico{% endblock %}
+{% block page_subtitle %}{{ total }} profesionale{{ total|pluralize:"s" }} registrado{{ total|pluralize:"s" }}{% endblock %}
+
+{% block header_action %}
+<a href="{% url 'profesionales:crear' %}" class="btn btn-primary">+ Nuevo Profesional</a>
+{% endblock %}
+
+{% block content %}
+
+<!-- SEARCH BAR -->
+<form method="get" style="margin-bottom:20px;" id="form-busqueda-prof">
+    <div style="display:flex;gap:10px;align-items:center;">
+        <div class="search-bar" style="flex:1;max-width:320px;">
+            <span class="search-icon">🔍</span>
+            <input type="text" name="q" value="{{ q }}" placeholder="Buscar por nombre o especialidad..." id="input-busqueda-prof" autocomplete="off">
+        </div>
+        <button type="submit" class="btn btn-outline">Buscar</button>
+        {% if q %}<a href="{% url 'profesionales:lista' %}" class="btn btn-outline">✕ Limpiar</a>{% endif %}
+    </div>
+</form>
+
+{% if profesionales %}
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;">
+    {% for prof in profesionales %}
+    <div class="card" style="padding:20px;">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px;">
+            <div style="display:flex;align-items:center;gap:12px;">
+                {% if prof.foto %}
+                <img src="{{ prof.foto.url }}" alt="{{ prof }}" style="width:52px;height:52px;border-radius:50%;object-fit:cover;">
+                {% else %}
+                <div class="patient-avatar" style="width:52px;height:52px;font-size:18px;background:var(--sidebar-active);">
+                    {{ prof.iniciales }}
+                </div>
+                {% endif %}
+                <div>
+                    <div style="font-size:15px;font-weight:700;">{{ prof.apellido }}, {{ prof.nombre }}</div>
+                    <span class="badge badge-confirmado" style="margin-top:4px;font-size:11px;">{{ prof.especialidad }}</span>
+                </div>
+            </div>
+            <div style="display:flex;gap:6px;">
+                <a href="{% url 'profesionales:editar' prof.pk %}" class="btn btn-outline btn-sm" title="Editar">✏️</a>
+                <a href="{% url 'profesionales:eliminar' prof.pk %}" class="btn btn-danger btn-sm" title="Eliminar">🗑</a>
+            </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--text-secondary);">
+            <div style="display:flex;gap:8px;">
+                <span style="min-width:20px;">🛡</span>
+                <span>Mat. Nacional: <strong style="color:var(--text-primary);">{{ prof.matricula_nacional }}</strong></span>
+            </div>
+            {% if prof.matricula_provincial %}
+            <div style="display:flex;gap:8px;">
+                <span style="min-width:20px;">🛡</span>
+                <span>Mat. Provincial: <strong style="color:var(--text-primary);">{{ prof.matricula_provincial }}</strong></span>
+            </div>
+            {% endif %}
+            {% if prof.telefono %}
+            <div style="display:flex;gap:8px;">
+                <span style="min-width:20px;">📞</span>
+                <span>{{ prof.telefono }}</span>
+            </div>
+            {% endif %}
+            {% if prof.email %}
+            <div style="display:flex;gap:8px;">
+                <span style="min-width:20px;">✉</span>
+                <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ prof.email }}</span>
+            </div>
+            {% endif %}
+        </div>
+
+        {% if not prof.activo %}
+        <div style="margin-top:10px;">
+            <span class="badge badge-cancelado">Inactivo</span>
+        </div>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+
+{% else %}
+<div class="empty-state">
+    <div class="icon">🩺</div>
+    <h3>{% if q %}No se encontraron profesionales{% else %}Sin profesionales registrados{% endif %}</h3>
+    <p>{% if q %}Intentá con otro término de búsqueda.{% else %}Registrá el primer profesional del centro.{% endif %}</p>
+    <a href="{% url 'profesionales:crear' %}" class="btn btn-primary" style="margin-top:16px;">+ Nuevo Profesional</a>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    const input = document.getElementById('input-busqueda-prof');
+    if (!input) return;
+    let timer;
+    input.addEventListener('input', function() {
+        clearTimeout(timer);
+        timer = setTimeout(function() {
+            document.getElementById('form-busqueda-prof').submit();
+        }, 350);
+    });
+})();
+</script>
+{% endblock %}

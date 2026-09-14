@@ -1,0 +1,103 @@
+{% extends 'base.html' %}
+
+{% block title %}Gestión de Pacientes{% endblock %}
+{% block nav_pacientes %}active{% endblock %}
+{% block page_title %}Gestión de Pacientes{% endblock %}
+{% block page_subtitle %}{{ total }} paciente{{ total|pluralize }} registrado{{ total|pluralize }}{% endblock %}
+
+{% block header_action %}
+<div style="display:flex;gap:8px;">
+    <a href="{% url 'pacientes:importar' %}" class="btn btn-outline">📋 Importar planilla / Excel</a>
+    <a href="{% url 'pacientes:crear' %}" class="btn btn-primary">👤+ Nuevo Paciente</a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div style="display:grid;grid-template-columns:280px 1fr;gap:20px;align-items:start;">
+
+    <!-- PANEL IZQUIERDO: BÚSQUEDA + LISTA -->
+    <div class="card" style="padding:16px;">
+        <form method="get" style="margin-bottom:14px;" id="form-busqueda-paciente">
+            <div class="search-bar">
+                <span class="search-icon">🔍</span>
+                <input type="text" name="q" value="{{ q }}" placeholder="Buscar por DNI, apellido o Nº Socio." id="input-busqueda-paciente" autocomplete="off">
+            </div>
+            <div style="display:flex;gap:8px;margin-top:10px;">
+                <a href="?orden=apellido{% if q %}&q={{ q }}{% endif %}" class="btn btn-sm {% if orden == 'apellido' %}btn-primary{% else %}btn-outline{% endif %}" style="flex:1;justify-content:center;">Apellido</a>
+                <a href="?orden=reciente{% if q %}&q={{ q }}{% endif %}" class="btn btn-sm {% if orden == 'reciente' %}btn-primary{% else %}btn-outline{% endif %}" style="flex:1;justify-content:center;">Reciente</a>
+            </div>
+        </form>
+
+        <div style="font-size:12px;color:var(--text-secondary);margin-bottom:10px;">
+            {{ page_obj.paginator.count }} resultado{{ page_obj.paginator.count|pluralize }}
+        </div>
+
+        <div style="max-height:calc(100vh - 260px);overflow-y:auto;">
+            {% for paciente in pacientes %}
+            <a href="{% url 'pacientes:detalle' paciente.pk %}"
+               style="display:flex;align-items:center;gap:10px;padding:10px;border-radius:8px;text-decoration:none;color:inherit;margin-bottom:2px;{% if selected_pk == paciente.pk %}background:var(--sidebar-bg);color:#fff;{% endif %}"
+               onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='{% if selected_pk == paciente.pk %}var(--sidebar-bg){% endif %}'">
+                <div class="patient-avatar" style="width:38px;height:38px;font-size:14px;{% if selected_pk == paciente.pk %}background:#2d3a56;{% endif %}">
+                    {{ paciente.iniciales }}
+                </div>
+                <div style="flex:1;min-width:0;">
+                    <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                        {{ paciente.apellido }}, {{ paciente.nombre }}
+                    </div>
+                    <div style="font-size:11px;color:var(--text-secondary);">
+                        DNI {{ paciente.dni }} · {{ paciente.obra_social }}
+                    </div>
+                </div>
+            </a>
+            {% empty %}
+            <div class="empty-state">
+                <div class="icon">🔍</div>
+                <p>No se encontraron pacientes.</p>
+            </div>
+            {% endfor %}
+        </div>
+
+        {% if is_paginated %}
+        <div style="display:flex;justify-content:space-between;margin-top:12px;">
+            {% if page_obj.has_previous %}
+            <a href="?page={{ page_obj.previous_page_number }}&q={{ q }}&orden={{ orden }}" class="btn btn-outline btn-sm">← Ant.</a>
+            {% endif %}
+            <span style="font-size:12px;color:var(--text-secondary);align-self:center;">
+                Pág. {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}
+            </span>
+            {% if page_obj.has_next %}
+            <a href="?page={{ page_obj.next_page_number }}&q={{ q }}&orden={{ orden }}" class="btn btn-outline btn-sm">Sig. →</a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- PANEL DERECHO: SELECCIONAR PACIENTE -->
+    <div class="card" style="min-height:400px;display:flex;align-items:center;justify-content:center;">
+        <div class="empty-state">
+            <div class="icon">👤</div>
+            <h3>Seleccioná un paciente</h3>
+            <p>Hacé clic en un paciente de la lista para ver su perfil e historial clínico.</p>
+            <a href="{% url 'pacientes:crear' %}" class="btn btn-primary" style="margin-top:16px;">+ Registrar nuevo paciente</a>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    const input = document.getElementById('input-busqueda-paciente');
+    if (!input) return;
+    let timer;
+    input.addEventListener('input', function() {
+        clearTimeout(timer);
+        timer = setTimeout(function() {
+            const form = document.getElementById('form-busqueda-paciente');
+            form.submit();
+        }, 350);
+    });
+})();
+</script>
+{% endblock %}

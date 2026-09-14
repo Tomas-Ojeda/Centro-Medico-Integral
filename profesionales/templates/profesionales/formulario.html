@@ -1,0 +1,104 @@
+{% extends 'base.html' %}
+{% block title %}{{ titulo }} — Centro Médico{% endblock %}
+{% block nav_profesionales %}active{% endblock %}
+{% block page_title %}{{ titulo }}{% endblock %}
+{% block page_subtitle %}Complete los datos del profesional{% endblock %}
+
+{% block content %}
+<div style="max-width:720px;">
+    <div class="card">
+        <form method="post" enctype="multipart/form-data" novalidate>
+            {% csrf_token %}
+
+            <div style="margin-bottom:20px;">
+                <h3 style="font-size:13px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.05em;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid var(--border);">
+                    Datos Personales
+                </h3>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Apellido *</label>
+                        {{ form.apellido }}
+                        {% if form.apellido.errors %}<ul class="errorlist">{% for e in form.apellido.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+                    </div>
+                    <div class="form-group">
+                        <label>Nombre *</label>
+                        {{ form.nombre }}
+                        {% if form.nombre.errors %}<ul class="errorlist">{% for e in form.nombre.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+                    </div>
+                    <div class="form-group">
+                        <label>DNI *</label>
+                        {{ form.dni }}
+                        {% if form.dni.errors %}<ul class="errorlist">{% for e in form.dni.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+                    </div>
+                    <div class="form-group">
+                        <label>Email</label>
+                        {{ form.email }}
+                        {% if form.email.errors %}<ul class="errorlist">{% for e in form.email.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+                    </div>
+                    <div class="form-group">
+                        <label>Teléfono</label>
+                        {{ form.telefono }}
+                    </div>
+                    <div class="form-group">
+                        <label>Foto</label>
+                        {{ form.foto }}
+                    </div>
+                </div>
+            </div>
+
+            <div style="margin-bottom:20px;">
+                <h3 style="font-size:13px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.05em;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid var(--border);">
+                    Datos Profesionales
+                </h3>
+                <div class="form-grid cols-3">
+                    <div class="form-group">
+                        <label>Especialidad *</label>
+                        {{ form.especialidad }}
+                    </div>
+                    <div class="form-group">
+                        <label>Mat. Nacional *</label>
+                        {{ form.matricula_nacional }}
+                        {% if form.matricula_nacional.errors %}<ul class="errorlist">{% for e in form.matricula_nacional.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+                    </div>
+                    <div class="form-group">
+                        <label>Mat. Provincial</label>
+                        {{ form.matricula_provincial }}
+                    </div>
+                    <div class="form-group">
+                        <label>Fecha de Ingreso *</label>
+                        {{ form.fecha_ingreso }}
+                    </div>
+                    <div class="form-group" style="align-self:end;">
+                        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                            {{ form.activo }} Profesional activo
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <a href="{% url 'profesionales:lista' %}" class="btn btn-outline">Cancelar</a>
+                <button type="submit" class="btn btn-primary">Guardar Profesional</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const dniInput = document.getElementById('{{ form.dni.id_for_label }}');
+    if (dniInput) {
+        dniInput.addEventListener('keypress', function(e) {
+            if (!/[0-9]/.test(e.key) && !['Backspace','Delete','Tab','ArrowLeft','ArrowRight'].includes(e.key)) {
+                e.preventDefault();
+            }
+        });
+        dniInput.addEventListener('input', function() {
+            this.value = this.value.replace(/[^0-9]/g, '');
+        });
+    }
+});
+</script>
+{% endblock %}

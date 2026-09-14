@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% block title %}Eliminar Paciente{% endblock %}
+{% block nav_pacientes %}active{% endblock %}
+{% block page_title %}Eliminar Paciente{% endblock %}
+
+{% block content %}
+<div style="max-width:480px;margin:0 auto;">
+    <div class="card" style="text-align:center;padding:40px 32px;">
+        <div style="font-size:56px;margin-bottom:16px;">⚠️</div>
+        <h2 style="font-size:18px;font-weight:700;margin-bottom:8px;">¿Confirmar eliminación?</h2>
+        <p style="color:var(--text-secondary);font-size:14px;margin-bottom:24px;">
+            Estás por eliminar al paciente <strong>{{ object }}</strong> (DNI {{ object.dni }}).<br>
+            Esta acción también eliminará su historial clínico y no se puede deshacer.
+        </p>
+        <form method="post" style="display:flex;gap:12px;justify-content:center;">
+            {% csrf_token %}
+            <a href="{% url 'pacientes:lista' %}" class="btn btn-outline">Cancelar</a>
+            <button type="submit" class="btn btn-danger" style="background:#ef4444;color:#fff;border:none;">Eliminar definitivamente</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

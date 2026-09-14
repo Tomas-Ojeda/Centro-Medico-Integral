@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Iniciar Sesión — Centro Médico Integral</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: #1a2035;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .login-wrapper {
+            width: 100%;
+            max-width: 420px;
+            padding: 20px;
+        }
+        .brand {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+        .brand-logo {
+            width: 64px; height: 64px;
+            background: #c9a84c;
+            border-radius: 16px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            margin-bottom: 16px;
+        }
+        .brand h1 { color: #fff; font-size: 22px; font-weight: 700; }
+        .brand p { color: #c9a84c; font-size: 13px; margin-top: 4px; }
+
+        .card {
+            background: #fff;
+            border-radius: 16px;
+            padding: 36px 32px;
+        }
+        .card h2 { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+        .card p { font-size: 13px; color: #64748b; margin-bottom: 24px; }
+
+        .form-group { margin-bottom: 16px; }
+        label { display: block; font-size: 12px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 5px; }
+        input[type=text], input[type=password] {
+            width: 100%; padding: 10px 12px;
+            border: 1px solid #e2e8f0; border-radius: 8px;
+            font-size: 14px; color: #1e293b;
+            transition: border-color 0.15s;
+        }
+        input:focus { outline: none; border-color: #c9a84c; box-shadow: 0 0 0 3px rgba(201,168,76,0.15); }
+        .btn {
+            width: 100%; padding: 11px;
+            background: #1a2035; color: #fff;
+            border: none; border-radius: 8px;
+            font-size: 14px; font-weight: 600;
+            cursor: pointer; margin-top: 8px;
+        }
+        .btn:hover { background: #0f172a; }
+        .errorlist { list-style: none; color: #ef4444; font-size: 12px; margin-top: 4px; }
+        .non-field-errors { background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 10px 14px; margin-bottom: 16px; color: #dc2626; font-size: 13px; }
+    </style>
+</head>
+<body>
+<div class="login-wrapper">
+    <div class="brand">
+        <div class="brand-logo">♡</div>
+        <h1>Centro Médico Integral</h1>
+        <p>Salto de las Rosas</p>
+    </div>
+
+    <div class="card">
+        <h2>Bienvenido</h2>
+        <p>Ingresá tus credenciales para acceder al sistema.</p>
+
+        <form method="post">
+            {% csrf_token %}
+            {% if form.non_field_errors %}
+            <div class="non-field-errors">{{ form.non_field_errors }}</div>
+            {% endif %}
+            <div class="form-group">
+                <label for="{{ form.username.id_for_label }}">Usuario</label>
+                {{ form.username }}
+                {% if form.username.errors %}<ul class="errorlist">{% for e in form.username.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+            </div>
+            <div class="form-group">
+                <label for="{{ form.password.id_for_label }}">Contraseña</label>
+                {{ form.password }}
+                {% if form.password.errors %}<ul class="errorlist">{% for e in form.password.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+            </div>
+            <button type="submit" class="btn">Ingresar al sistema</button>
+        </form>
+    </div>
+</div>
+</body>
+</html>

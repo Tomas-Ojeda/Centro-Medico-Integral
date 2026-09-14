@@ -1,0 +1,154 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ paciente }} — Centro Médico{% endblock %}
+{% block nav_pacientes %}active{% endblock %}
+{% block page_title %}Gestión de Pacientes{% endblock %}
+{% block page_subtitle %}Perfil e historial clínico{% endblock %}
+
+{% block header_action %}
+<a href="{% url 'pacientes:crear' %}" class="btn btn-primary">👤+ Nuevo Paciente</a>
+{% endblock %}
+
+{% block content %}
+<div style="display:grid;grid-template-columns:280px 1fr;gap:20px;align-items:start;">
+
+    <!-- PANEL IZQUIERDO: LISTA DE PACIENTES -->
+    <div class="card" style="padding:16px;">
+        <form method="get" action="{% url 'pacientes:lista' %}" style="margin-bottom:14px;">
+            <div class="search-bar">
+                <span class="search-icon">🔍</span>
+                <input type="text" name="q" placeholder="Buscar por DNI, apellido o Nº Socio.">
+            </div>
+        </form>
+        <div style="font-size:12px;color:var(--text-secondary);margin-bottom:10px;">Pacientes recientes</div>
+        <div style="max-height:calc(100vh - 260px);overflow-y:auto;">
+            {% for p in pacientes_sidebar %}
+            <a href="{% url 'pacientes:detalle' p.pk %}"
+               style="display:flex;align-items:center;gap:10px;padding:10px;border-radius:8px;text-decoration:none;color:inherit;margin-bottom:2px;{% if p.pk == paciente.pk %}background:var(--sidebar-bg);color:#fff;{% endif %}">
+                <div class="patient-avatar" style="width:38px;height:38px;font-size:14px;{% if p.pk == paciente.pk %}background:#2d3a56;{% endif %}">
+                    {{ p.iniciales }}
+                </div>
+                <div style="flex:1;min-width:0;">
+                    <div style="font-size:13px;font-weight:600;{% if p.pk == paciente.pk %}color:#fff;{% endif %}">{{ p.apellido }}, {{ p.nombre }}</div>
+                    <div style="font-size:11px;color:var(--text-secondary);">DNI {{ p.dni }} · {{ p.obra_social }}</div>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+        <a href="{% url 'pacientes:lista' %}" class="btn btn-outline btn-sm" style="margin-top:12px;width:100%;justify-content:center;">Ver todos</a>
+    </div>
+
+    <!-- PANEL DERECHO: PERFIL + HISTORIAL -->
+    <div>
+        <!-- DATOS DEL PACIENTE -->
+        <div class="card" style="margin-bottom:20px;">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px;">
+                <div style="display:flex;align-items:center;gap:16px;">
+                    <div class="patient-avatar lg">{{ paciente.iniciales }}</div>
+                    <div>
+                        <h2 style="font-size:20px;font-weight:700;">{{ paciente.apellido }}, {{ paciente.nombre }}</h2>
+                        <div style="display:flex;align-items:center;gap:10px;margin-top:4px;">
+                            <span style="font-size:13px;color:var(--text-secondary);">DNI {{ paciente.dni }}</span>
+                            <span class="badge badge-confirmado">{{ paciente.edad }} años</span>
+                        </div>
+                    </div>
+                </div>
+                <div style="display:flex;gap:8px;">
+                    <a href="{% url 'pacientes:editar' paciente.pk %}" class="btn btn-outline btn-sm">✏️ Editar</a>
+                    <a href="{% url 'pacientes:eliminar' paciente.pk %}" class="btn btn-danger btn-sm">🗑</a>
+                </div>
+            </div>
+
+            <div class="info-grid">
+                <div class="info-item">
+                    <label># Nº de Socio</label>
+                    <div class="value">{{ paciente.numero_socio|default:"—" }}</div>
+                </div>
+                <div class="info-item">
+                    <label>🛡 Obra Social</label>
+                    <div class="value">{{ paciente.obra_social }}</div>
+                </div>
+                <div class="info-item">
+                    <label>📅 Nacimiento</label>
+                    <div class="value">{{ paciente.fecha_nacimiento|date:"d \d\e F, Y" }}</div>
+                </div>
+                <div class="info-item">
+                    <label>📞 Teléfono</label>
+                    <div class="value">{{ paciente.telefono|default:"—" }}</div>
+                </div>
+                <div class="info-item">
+                    <label>✉ Email</label>
+                    <div class="value">{{ paciente.email|default:"—" }}</div>
+                </div>
+                <div class="info-item">
+                    <label>📍 Dirección</label>
+                    <div class="value">{{ paciente.direccion|default:"—" }}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- HISTORIAL CLÍNICO -->
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title" style="display:flex;align-items:center;gap:8px;">
+                    <span style="color:var(--accent);">♡</span> Historial Clínico
+                </span>
+                <a href="{% url 'historias:nueva_consulta' paciente.pk %}" class="btn btn-outline btn-sm">📄 Nueva Consulta</a>
+            </div>
+
+            {% if historial %}
+            <div class="timeline">
+                {% for consulta in historial %}
+                <div class="timeline-item">
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-content">
+                        <div class="timeline-header">
+                            <span class="timeline-title">{{ consulta.diagnostico|truncatechars:60 }}</span>
+                            {% if forloop.first %}
+                            <span class="badge badge-confirmado" style="font-size:10px;">Más reciente</span>
+                            {% endif %}
+                            <span class="badge badge-pendiente">{{ consulta.especialidad }}</span>
+                        </div>
+                        <div class="timeline-meta">
+                            🕐 {{ consulta.fecha_hora|date:"d \d\e F Y, H:i" }} &nbsp;·&nbsp;
+                            👤 Atendido por: {{ consulta.profesional }}
+                        </div>
+                        {% if consulta.diagnostico %}
+                        <div class="timeline-section">
+                            <label>Diagnóstico</label>
+                            <p>{{ consulta.diagnostico }}</p>
+                        </div>
+                        {% endif %}
+                        {% if consulta.evolucion %}
+                        <div class="timeline-section">
+                            <label>Evolución / Observaciones</label>
+                            <p>{{ consulta.evolucion }}</p>
+                        </div>
+                        {% endif %}
+                        {% if consulta.tratamiento %}
+                        <div class="timeline-section">
+                            <label>Tratamiento</label>
+                            <p>{{ consulta.tratamiento }}</p>
+                        </div>
+                        {% endif %}
+                        <div style="display:flex;gap:8px;margin-top:10px;">
+                            <a href="{% url 'historias:editar_consulta' consulta.pk %}" class="btn btn-outline btn-sm">✏️ Editar</a>
+                            <a href="{% url 'historias:eliminar_consulta' consulta.pk %}" class="btn btn-danger btn-sm">🗑</a>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <div class="icon">📋</div>
+                <h3>Sin historial clínico</h3>
+                <p>Este paciente no tiene consultas registradas.</p>
+                <a href="{% url 'historias:nueva_consulta' paciente.pk %}" class="btn btn-primary" style="margin-top:16px;">+ Registrar primera consulta</a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+</div>
+{% endblock %}

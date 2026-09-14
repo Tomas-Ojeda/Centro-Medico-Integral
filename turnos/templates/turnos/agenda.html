@@ -1,0 +1,170 @@
+{% extends 'base.html' %}
+
+{% block title %}Agenda de Turnos — Centro Médico{% endblock %}
+{% block nav_turnos %}active{% endblock %}
+{% block page_title %}Agenda de Turnos{% endblock %}
+{% block page_subtitle %}{{ total_dia }} turno{{ total_dia|pluralize }} para hoy{% endblock %}
+
+{% block header_action %}
+<div style="display:flex;gap:8px;">
+    <a href="{% url 'turnos:exportar_csv' %}?fecha={{ fecha_str }}" class="btn btn-outline" title="Exportar agenda del día a CSV">⬇ Exportar CSV</a>
+    <a href="{% url 'turnos:crear' %}" class="btn btn-primary">+ Nuevo Turno</a>
+</div>
+{% endblock %}
+
+{% block content %}
+
+<!-- STATS RÁPIDAS DEL DÍA -->
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;">
+    <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:12px 16px;text-align:center;">
+        <div style="font-size:22px;font-weight:700;color:#0284c7;">{{ stats_dia.pendientes }}</div>
+        <div style="font-size:12px;color:#0369a1;">Pendientes</div>
+    </div>
+    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px 16px;text-align:center;">
+        <div style="font-size:22px;font-weight:700;color:#16a34a;">{{ stats_dia.confirmados }}</div>
+        <div style="font-size:12px;color:#15803d;">Confirmados</div>
+    </div>
+    <div style="background:#f5f3ff;border:1px solid #ddd6fe;border-radius:8px;padding:12px 16px;text-align:center;">
+        <div style="font-size:22px;font-weight:700;color:#7c3aed;">{{ stats_dia.realizados }}</div>
+        <div style="font-size:12px;color:#6d28d9;">Realizados</div>
+    </div>
+    <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:12px 16px;text-align:center;">
+        <div style="font-size:22px;font-weight:700;color:#ea580c;">{{ stats_dia.ausentes }}</div>
+        <div style="font-size:12px;color:#c2410c;">Ausentes</div>
+    </div>
+</div>
+
+<!-- FILTER BAR -->
+<form method="get" class="filter-bar" id="form-agenda">
+    <input type="date" name="fecha" value="{{ fecha_str }}" style="min-width:160px;" onchange="this.form.submit()">
+
+    <div class="search-bar" style="flex:1;max-width:220px;">
+        <span class="search-icon">🔍</span>
+        <input type="text" name="q" value="{{ q }}" placeholder="Buscar paciente..." id="input-busqueda-agenda" autocomplete="off">
+    </div>
+
+    <select name="especialidad" style="min-width:180px;" onchange="this.form.submit()">
+        <option value="">Todas las especialidades</option>
+        {% for esp in especialidades %}
+        <option value="{{ esp }}" {% if filtro_especialidad == esp %}selected{% endif %}>{{ esp }}</option>
+        {% endfor %}
+    </select>
+
+    <select name="profesional" style="min-width:180px;" onchange="this.form.submit()">
+        <option value="">Todos los profesionales</option>
+        {% for prof in profesionales %}
+        <option value="{{ prof.pk }}" {% if filtro_profesional == prof.pk|stringformat:"s" %}selected{% endif %}>{{ prof.apellido }}, {{ prof.nombre }}</option>
+        {% endfor %}
+    </select>
+
+    <a href="{% url 'turnos:agenda' %}" class="btn btn-outline">✕</a>
+</form>
+
+<!-- DATE HEADING -->
+<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+    <span style="font-size:16px;">📅</span>
+    <strong style="font-size:16px;color:var(--text-primary);">
+        {{ fecha_seleccionada|date:"l d \d\e F, Y" }}
+    </strong>
+    {% if fecha_seleccionada == hoy %}
+    <span class="badge badge-confirmado">Hoy</span>
+    {% endif %}
+</div>
+
+<!-- NAV DÍAS -->
+<div style="display:flex;gap:8px;margin-bottom:20px;">
+    <a href="?fecha={{ fecha_anterior }}" class="btn btn-outline btn-sm">← Día anterior</a>
+    <a href="?fecha={{ hoy|date:'Y-m-d' }}" class="btn btn-outline btn-sm">Hoy</a>
+    <a href="?fecha={{ fecha_siguiente }}" class="btn btn-outline btn-sm">Día siguiente →</a>
+</div>
+
+{% if turnos %}
+<div class="card" style="padding:0;overflow:hidden;">
+    {% for turno in turnos %}
+    <div style="display:flex;align-items:center;gap:16px;padding:16px 20px;border-bottom:1px solid var(--border);">
+        <!-- HORA -->
+        <div style="min-width:52px;text-align:center;">
+            <div style="font-size:17px;font-weight:700;color:var(--text-primary);">{{ turno.fecha_hora|date:"H:i" }}</div>
+        </div>
+
+        <!-- PACIENTE + DETALLES -->
+        <div style="flex:1;min-width:0;">
+            <div style="font-size:15px;font-weight:600;">{{ turno.paciente.apellido }}, {{ turno.paciente.nombre }}</div>
+            <div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">
+                DNI {{ turno.paciente.dni }}
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;margin-top:5px;font-size:12px;color:var(--text-secondary);">
+                <span>🩺 {{ turno.especialidad }}</span>
+                <span>👤 {{ turno.profesional.apellido }}, {{ turno.profesional.nombre }}</span>
+            </div>
+            {% if turno.motivo %}
+            <div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">📋 {{ turno.motivo }}</div>
+            {% endif %}
+            {% if turno.observaciones %}
+            <div style="font-size:12px;color:#7c3aed;margin-top:2px;">💬 {{ turno.observaciones }}</div>
+            {% endif %}
+        </div>
+
+        <!-- ACCIONES DE ESTADO -->
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
+            <span class="badge badge-{{ turno.estado }}">{{ turno.get_estado_display }}</span>
+
+            {% if turno.estado == 'pendiente' %}
+            <form method="post" action="{% url 'turnos:cambiar_estado' turno.pk 'confirmado' %}" style="display:inline;">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-success">Confirmar</button>
+            </form>
+            <form method="post" action="{% url 'turnos:cambiar_estado' turno.pk 'realizado' %}" style="display:inline;">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-outline">Realizado</button>
+            </form>
+            <form method="post" action="{% url 'turnos:cambiar_estado' turno.pk 'ausente' %}" style="display:inline;">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-outline">Ausente</button>
+            </form>
+            {% elif turno.estado == 'confirmado' %}
+            <form method="post" action="{% url 'turnos:cambiar_estado' turno.pk 'realizado' %}" style="display:inline;">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-success">Realizado</button>
+            </form>
+            <form method="post" action="{% url 'turnos:cambiar_estado' turno.pk 'ausente' %}" style="display:inline;">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-outline">Ausente</button>
+            </form>
+            {% endif %}
+
+            <a href="{% url 'turnos:editar' turno.pk %}" class="btn btn-outline btn-sm">✏️</a>
+            <a href="{% url 'turnos:eliminar' turno.pk %}" class="btn btn-danger btn-sm">🗑</a>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+{% else %}
+<div class="card">
+    <div class="empty-state">
+        <div class="icon">📭</div>
+        <h3>Sin turnos para este día</h3>
+        <p>No hay turnos agendados con los filtros seleccionados.</p>
+        <a href="{% url 'turnos:crear' %}" class="btn btn-primary" style="margin-top:16px;">+ Agendar turno</a>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    const input = document.getElementById('input-busqueda-agenda');
+    if (!input) return;
+    let timer;
+    input.addEventListener('input', function() {
+        clearTimeout(timer);
+        timer = setTimeout(function() {
+            document.getElementById('form-agenda').submit();
+        }, 350);
+    });
+})();
+</script>
+{% endblock %}
