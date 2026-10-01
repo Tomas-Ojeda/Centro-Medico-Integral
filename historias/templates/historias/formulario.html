@@ -80,9 +80,22 @@
                             {{ form|get_field:campo.pk }}
                         </div>
                     </div>
-                    {% empty %}
-                    <p style="font-size:13px;color:var(--text-secondary);">Haga clic en "+ Agregar campo" para crear campos personalizados.</p>
                     {% endfor %}
+                    {% if form.instance.pk %}
+                        {% for valor in form.instance.campos_adicionales.all %}
+                            {% if valor.campo not in form.campos_adicionales %}
+                            <div class="additional-field">
+                                <div class="form-group full">
+                                    <label>{{ valor.campo.nombre }}</label>
+                                    <input type="text" name="campo_adicional_{{ valor.campo.pk }}" value="{{ valor.valor }}" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;">
+                                </div>
+                            </div>
+                            {% endif %}
+                        {% endfor %}
+                    {% endif %}
+                    {% if not form.campos_adicionales and not form.instance.campos_adicionales.all %}
+                    <p style="font-size:13px;color:var(--text-secondary);">Haga clic en "+ Agregar campo" para crear campos personalizados.</p>
+                    {% endif %}
                 </div>
             </div>
 
@@ -97,20 +110,6 @@
 
 {% block extra_js %}
 <script>
-// Cargar campos adicionales existentes al cargar la página
-document.addEventListener('DOMContentLoaded', function() {
-    cargarCamposAdicionales();
-});
-
-function cargarCamposAdicionales() {
-    // Los campos adicionales se renderizan desde el formulario de Django
-    const container = document.getElementById('campos-adicionales-list');
-    
-    // Obtener campos adicionales del formulario (están en el HTML como campos ocultos)
-    // Por ahora, mostramos un mensaje si no hay campos
-    container.innerHTML = '<p style="font-size:13px;color:var(--text-secondary);">Haga clic en "+ Agregar campo" para crear campos personalizados.</p>';
-}
-
 function agregarCampoAdicional() {
     const container = document.getElementById('campos-adicionales-list');
     const id = Date.now();
@@ -119,11 +118,11 @@ function agregarCampoAdicional() {
         <div class="additional-field" id="campo-${id}">
             <div class="form-group">
                 <label>Nombre del campo</label>
-                <input type="text" id="nombre-${id}" placeholder="Ej: Peso, Altura, etc." style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;">
+                <input type="text" name="campo_dinamico_${id}_nombre" id="nombre-${id}" placeholder="Ej: Peso, Altura, etc." style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;">
             </div>
             <div class="form-group">
                 <label>Tipo</label>
-                <select id="tipo-${id}" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;">
+                <select name="campo_dinamico_${id}_tipo" id="tipo-${id}" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;">
                     <option value="texto">Texto</option>
                     <option value="numero">Número</option>
                     <option value="fecha">Fecha</option>
@@ -132,7 +131,7 @@ function agregarCampoAdicional() {
             </div>
             <div class="form-group" id="valor-container-${id}">
                 <label>Valor</label>
-                <input type="text" id="valor-${id}" placeholder="Ingrese el valor" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;">
+                <input type="text" name="campo_dinamico_${id}_valor" id="valor-${id}" placeholder="Ingrese el valor" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;">
             </div>
             <button type="button" class="btn-remove" onclick="eliminarCampoAdicional(${id})" title="Eliminar campo">×</button>
         </div>
@@ -140,19 +139,18 @@ function agregarCampoAdicional() {
     
     container.insertAdjacentHTML('beforeend', fieldHtml);
     
-    // Actualizar el tipo de input cuando cambia la selección
     document.getElementById(`tipo-${id}`).addEventListener('change', function() {
         const valorContainer = document.getElementById(`valor-container-${id}`);
         const tipo = this.value;
         
         if (tipo === 'texto') {
-            valorContainer.innerHTML = '<label>Valor</label><input type="text" id="valor-${id}" placeholder="Ingrese el valor" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;">';
+            valorContainer.innerHTML = '<label>Valor</label><input type="text" name="campo_dinamico_${id}_valor" id="valor-${id}" placeholder="Ingrese el valor" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;">';
         } else if (tipo === 'numero') {
-            valorContainer.innerHTML = '<label>Valor</label><input type="number" id="valor-${id}" placeholder="Ingrese el valor" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;">';
+            valorContainer.innerHTML = '<label>Valor</label><input type="number" name="campo_dinamico_${id}_valor" id="valor-${id}" placeholder="Ingrese el valor" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;">';
         } else if (tipo === 'fecha') {
-            valorContainer.innerHTML = '<label>Valor</label><input type="date" id="valor-${id}" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;">';
+            valorContainer.innerHTML = '<label>Valor</label><input type="date" name="campo_dinamico_${id}_valor" id="valor-${id}" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;">';
         } else if (tipo === 'opciones') {
-            valorContainer.innerHTML = '<label>Valor</label><input type="text" id="valor-${id}" placeholder="Opciones separadas por comas" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;">';
+            valorContainer.innerHTML = '<label>Valor</label><input type="text" name="campo_dinamico_${id}_valor" id="valor-${id}" placeholder="Opciones separadas por comas" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;">';
         }
     });
 }

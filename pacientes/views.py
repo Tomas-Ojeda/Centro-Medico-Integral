@@ -211,6 +211,28 @@ class DescargarHistoriaPDFView(LoginRequiredMixin, View):
         for label, value in datos_paciente:
             story.append(Paragraph(f'<b>{label}</b> {value}', styles['Value']))
         
+        # Campos adicionales del paciente (globales, no por consulta)
+        from historias.models import CampoAdicional, ValorCampoAdicional
+        campos_adicionales_paciente = ValorCampoAdicional.objects.filter(
+            consulta__paciente=paciente
+        ).select_related('campo', 'consulta').order_by('campo__nombre', '-consulta__fecha_hora')
+        
+        # Obtener campos adicionales únicos del paciente (el más reciente de cada tipo)
+        campos_vistos = set()
+        campos_unicos = []
+        for campo in campos_adicionales_paciente:
+            if campo.campo_id not in campos_vistos:
+                campos_vistos.add(campo.campo_id)
+                campos_unicos.append(campo)
+        
+        if campos_unicos:
+            story.append(Spacer(1, 8))
+            for campo in campos_unicos:
+                story.append(Paragraph(
+                    f'<b>{campo.campo.nombre}:</b> {campo.valor}',
+                    styles['Value']
+                ))
+        
         story.append(Spacer(1, 16))
         
         # Historial de consultas

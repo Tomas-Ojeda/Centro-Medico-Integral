@@ -1,3 +1,4 @@
+import re
 from django import forms
 from .models import Consulta, CampoAdicional, ValorCampoAdicional
 
@@ -33,7 +34,7 @@ class ConsultaForm(forms.ModelForm):
         else:
             valores_existentes = {}
         
-        # Crear campos dinámicos
+        # Crear campos dinámicos para campos adicionales existentes
         for campo in self.campos_adicionales:
             field_name = f'campo_adicional_{campo.pk}'
             if campo.tipo == 'texto':
@@ -65,11 +66,25 @@ class ConsultaForm(forms.ModelForm):
             # Establecer valor inicial si existe
             if campo.pk in valores_existentes:
                 self.fields[field_name].initial = valores_existentes[campo.pk]
+        
+        # Procesar campos dinámicos del POST (creados con el botón "+")
+        self.campos_dinamicos = {}
+        if self.data:
+            # Buscar todos los campos que empiecen con 'campo_dinamico_'
+            pattern = re.compile(r'^campo_dinamico_(\d+)_(\w+)$')
+            for key in self.data.keys():
+                match = pattern.match(key)
+                if match:
+                    campo_id = match.group(1)
+                    campo_attr = match.group(2)
+                    if campo_id not in self.campos_dinamicos:
+                        self.campos_dinamicos[campo_id] = {}
+                    self.campos_dinamicos[campo_id][campo_attr] = self.data.get(key, '').strip()
 
     def save(self, commit=True):
         consulta = super().save(commit=commit)
         
-        # Guardar valores de campos adicionales
+        # Guardar valores de campos adicionales existentes
         if commit:
             for campo in self.campos_adicionales:
                 field_name = f'campo_adicional_{campo.pk}'
@@ -87,5 +102,34 @@ class ConsultaForm(forms.ModelForm):
                         consulta=consulta,
                         campo=campo
                     ).delete()
+            
+            # Guardar campos dinámicos (creados con el botón "+")
+            for campo_id, datos in self.campos_dinamicos.items():
+                nombre = datos.get('nombre', '').strip()
+                tipo = datos.get('tipo', 'texto').strip()
+                valor = datos.get('valor', '').strip()
+                
+                # Solo guardar si hay nombre y valor
+                if nombre and valor:
+                    # Crear o obtener el CampoAdicional
+                    campo_adicional, created = CampoAdicional.objects.get_or_create(
+                        nombre=nombre,
+                        defaults={
+                            'tipo': tipo if tipo in ['texto', 'numero', 'fecha', 'opciones'] else 'texto',
+                            'activo': True
+                        }
+                    )
+                    
+                    # Si ya existía pero estaba inactivo, activarlo
+                    if not created and not campo_adicional.activo:
+                        campo_adicional.activo = True
+                        campo_adicional.save()
+                    
+                    # Guardar el valor
+                    ValorCampoAdicional.objects.update_or_create(
+                        consulta=consulta,
+                        campo=campo_adicional,
+                        defaults={'valor': valor}
+                    )
         
         return consulta

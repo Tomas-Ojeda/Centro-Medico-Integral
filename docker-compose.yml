@@ -71,7 +71,7 @@ services:
     volumes:
       - ./docker/backups:/backups
       - ./docker/backup.sh:/backup.sh
-    entrypoint: ["sh", "-c", "chmod +x /backup.sh && crond -f -d 8"]
+    entrypoint: ["sh", "-c", "apt-get update && apt-get install -y cron && chmod +x /backup.sh && cron -f -L 15"]
     depends_on:
       db:
         condition: service_healthy
