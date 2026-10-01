@@ -54,6 +54,7 @@
                     </div>
                 </div>
                 <div style="display:flex;gap:8px;">
+                    <a href="{% url 'pacientes:descargar_pdf' paciente.pk %}" class="btn btn-accent btn-sm">📄 Descargar PDF</a>
                     <a href="{% url 'pacientes:editar' paciente.pk %}" class="btn btn-outline btn-sm">✏️ Editar</a>
                     <a href="{% url 'pacientes:eliminar' paciente.pk %}" class="btn btn-danger btn-sm">🗑</a>
                 </div>
@@ -131,6 +132,12 @@
                             <p>{{ consulta.tratamiento }}</p>
                         </div>
                         {% endif %}
+                        {% for campo_adicional in consulta.campos_adicionales.all %}
+                        <div class="timeline-section">
+                            <label>{{ campo_adicional.campo.nombre }}</label>
+                            <p>{{ campo_adicional.valor }}</p>
+                        </div>
+                        {% endfor %}
                         <div style="display:flex;gap:8px;margin-top:10px;">
                             <a href="{% url 'historias:editar_consulta' consulta.pk %}" class="btn btn-outline btn-sm">✏️ Editar</a>
                             <a href="{% url 'historias:eliminar_consulta' consulta.pk %}" class="btn btn-danger btn-sm">🗑</a>

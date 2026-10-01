@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load form_extras %}
 {% block title %}{{ titulo }} — Centro Médico{% endblock %}
 {% block nav_pacientes %}active{% endblock %}
 {% block page_title %}{{ titulo }}{% endblock %}
@@ -6,7 +7,7 @@
 
 {% block content %}
 <div style="max-width:720px;">
-    <div class="card" style="margin-bottom:12px;padding:14px 20px;background:#f8fafc;">
+    <div class="card" style="margin-bottom:12px;padding:14px 20px;background:var(--bg-main);">
         <div style="display:flex;align-items:center;gap:12px;">
             <div class="patient-avatar">{{ paciente.iniciales }}</div>
             <div>
@@ -50,8 +51,41 @@
                 <div class="form-group full">
                     <label>Archivo adjunto</label>
                     {{ form.archivo_adjunto }}
+                    {% if form.instance and form.instance.archivo_adjunto %}
+                    <div style="margin-top:8px;">
+                        <a href="{{ form.instance.archivo_adjunto.url }}" target="_blank" class="file-link">
+                            📎 Ver archivo actual
+                        </a>
+                        <a href="{{ form.instance.archivo_adjunto.url }}" download class="file-link" style="margin-left:12px;">
+                            ⬇ Descargar
+                        </a>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
+
+            <!-- CAMPOS ADICIONALES DINÁMICOS -->
+            <div id="campos-adicionales-container" style="margin-top:20px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+                    <label style="font-size:13px;font-weight:600;color:var(--text-primary);">Campos adicionales</label>
+                    <button type="button" class="btn btn-outline btn-sm" onclick="agregarCampoAdicional()">
+                        + Agregar campo
+                    </button>
+                </div>
+                <div id="campos-adicionales-list">
+                    {% for campo in form.campos_adicionales %}
+                    <div class="additional-field">
+                        <div class="form-group full">
+                            <label>{{ campo.nombre }}</label>
+                            {{ form|get_field:campo.pk }}
+                        </div>
+                    </div>
+                    {% empty %}
+                    <p style="font-size:13px;color:var(--text-secondary);">Haga clic en "+ Agregar campo" para crear campos personalizados.</p>
+                    {% endfor %}
+                </div>
+            </div>
+
             <div class="form-actions">
                 <a href="{% url 'pacientes:detalle' paciente.pk %}" class="btn btn-outline">Cancelar</a>
                 <button type="submit" class="btn btn-primary">Guardar Consulta</button>
@@ -59,4 +93,75 @@
         </form>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Cargar campos adicionales existentes al cargar la página
+document.addEventListener('DOMContentLoaded', function() {
+    cargarCamposAdicionales();
+});
+
+function cargarCamposAdicionales() {
+    // Los campos adicionales se renderizan desde el formulario de Django
+    const container = document.getElementById('campos-adicionales-list');
+    
+    // Obtener campos adicionales del formulario (están en el HTML como campos ocultos)
+    // Por ahora, mostramos un mensaje si no hay campos
+    container.innerHTML = '<p style="font-size:13px;color:var(--text-secondary);">Haga clic en "+ Agregar campo" para crear campos personalizados.</p>';
+}
+
+function agregarCampoAdicional() {
+    const container = document.getElementById('campos-adicionales-list');
+    const id = Date.now();
+    
+    const fieldHtml = `
+        <div class="additional-field" id="campo-${id}">
+            <div class="form-group">
+                <label>Nombre del campo</label>
+                <input type="text" id="nombre-${id}" placeholder="Ej: Peso, Altura, etc." style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;">
+            </div>
+            <div class="form-group">
+                <label>Tipo</label>
+                <select id="tipo-${id}" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;">
+                    <option value="texto">Texto</option>
+                    <option value="numero">Número</option>
+                    <option value="fecha">Fecha</option>
+                    <option value="opciones">Opciones</option>
+                </select>
+            </div>
+            <div class="form-group" id="valor-container-${id}">
+                <label>Valor</label>
+                <input type="text" id="valor-${id}" placeholder="Ingrese el valor" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;">
+            </div>
+            <button type="button" class="btn-remove" onclick="eliminarCampoAdicional(${id})" title="Eliminar campo">×</button>
+        </div>
+    `;
+    
+    container.insertAdjacentHTML('beforeend', fieldHtml);
+    
+    // Actualizar el tipo de input cuando cambia la selección
+    document.getElementById(`tipo-${id}`).addEventListener('change', function() {
+        const valorContainer = document.getElementById(`valor-container-${id}`);
+        const tipo = this.value;
+        
+        if (tipo === 'texto') {
+            valorContainer.innerHTML = '<label>Valor</label><input type="text" id="valor-${id}" placeholder="Ingrese el valor" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;">';
+        } else if (tipo === 'numero') {
+            valorContainer.innerHTML = '<label>Valor</label><input type="number" id="valor-${id}" placeholder="Ingrese el valor" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;">';
+        } else if (tipo === 'fecha') {
+            valorContainer.innerHTML = '<label>Valor</label><input type="date" id="valor-${id}" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;">';
+        } else if (tipo === 'opciones') {
+            valorContainer.innerHTML = '<label>Valor</label><input type="text" id="valor-${id}" placeholder="Opciones separadas por comas" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;">';
+        }
+    });
+}
+
+function eliminarCampoAdicional(id) {
+    const campo = document.getElementById(`campo-${id}`);
+    if (campo) {
+        campo.remove();
+    }
+}
+</script>
 {% endblock %}

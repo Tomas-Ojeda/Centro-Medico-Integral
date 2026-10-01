@@ -5,12 +5,13 @@ from django.shortcuts import get_object_or_404, redirect
 from django.views import View
 from django.utils import timezone
 from django.db.models import Q
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from datetime import date, timedelta
 import csv
 from .models import Turno, EstadoTurno
 from .forms import TurnoForm
 from profesionales.models import Profesional
+from pacientes.models import Paciente
 
 
 class TurnoAgendaView(LoginRequiredMixin, ListView):
@@ -72,6 +73,57 @@ class TurnoAgendaView(LoginRequiredMixin, ListView):
             'ausentes': todos_dia.filter(estado='ausente').count(),
         }
         return ctx
+
+
+class BuscarPacientesView(LoginRequiredMixin, View):
+    """Endpoint JSON para búsqueda de pacientes con autocompletado."""
+    def get(self, request):
+        q = request.GET.get('q', '').strip()
+        if not q:
+            # Si no hay query, devolver todos los pacientes (limitado)
+            pacientes = Paciente.objects.filter(activo=True).order_by('apellido', 'nombre')[:50]
+        else:
+            pacientes = Paciente.objects.filter(
+                Q(nombre__icontains=q) |
+                Q(apellido__icontains=q) |
+                Q(dni__icontains=q)
+            ).filter(activo=True).order_by('apellido', 'nombre')[:20]
+        
+        data = [{
+            'id': p.pk,
+            'nombre': p.nombre,
+            'apellido': p.apellido,
+            'dni': p.dni,
+            'nombre_completo': f'{p.apellido}, {p.nombre}',
+            'obra_social': p.obra_social,
+        } for p in pacientes]
+        
+        return JsonResponse({'results': data})
+
+
+class BuscarProfesionalesView(LoginRequiredMixin, View):
+    """Endpoint JSON para búsqueda de profesionales con autocompletado."""
+    def get(self, request):
+        q = request.GET.get('q', '').strip()
+        if not q:
+            # Si no hay query, devolver todos los profesionales activos
+            profesionales = Profesional.objects.filter(activo=True).order_by('apellido', 'nombre')[:50]
+        else:
+            profesionales = Profesional.objects.filter(
+                Q(nombre__icontains=q) |
+                Q(apellido__icontains=q) |
+                Q(especialidad__icontains=q)
+            ).filter(activo=True).order_by('apellido', 'nombre')[:20]
+        
+        data = [{
+            'id': p.pk,
+            'nombre': p.nombre,
+            'apellido': p.apellido,
+            'especialidad': p.especialidad,
+            'nombre_completo': f'{p.apellido}, {p.nombre}',
+        } for p in profesionales]
+        
+        return JsonResponse({'results': data})
 
 
 class ExportarAgendaCSVView(LoginRequiredMixin, View):

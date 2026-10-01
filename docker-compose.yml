@@ -70,7 +70,7 @@ services:
     env_file: .env
     volumes:
       - ./docker/backups:/backups
-      - ./docker/backup.sh:/backup.sh:ro
+      - ./docker/backup.sh:/backup.sh
     entrypoint: ["sh", "-c", "chmod +x /backup.sh && crond -f -d 8"]
     depends_on:
       db:

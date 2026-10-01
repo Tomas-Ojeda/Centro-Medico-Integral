@@ -12,12 +12,22 @@
             <div class="form-grid">
                 <div class="form-group full">
                     <label>Paciente *</label>
-                    {{ form.paciente }}
+                    <div class="autocomplete-container">
+                        <input type="text" id="paciente-search" placeholder="Buscar paciente por nombre o DNI..." autocomplete="off"
+                               style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--input-bg);color:var(--text-primary);">
+                        <div class="autocomplete-list" id="paciente-results"></div>
+                    </div>
+                    {{ form.paciente.as_hidden }}
                     {% if form.paciente.errors %}<ul class="errorlist">{% for e in form.paciente.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
                 </div>
                 <div class="form-group full">
                     <label>Profesional *</label>
-                    {{ form.profesional }}
+                    <div class="autocomplete-container">
+                        <input type="text" id="profesional-search" placeholder="Buscar profesional por nombre o especialidad..." autocomplete="off"
+                               style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--input-bg);color:var(--text-primary);">
+                        <div class="autocomplete-list" id="profesional-results"></div>
+                    </div>
+                    {{ form.profesional.as_hidden }}
                     {% if form.profesional.errors %}<ul class="errorlist">{% for e in form.profesional.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
                 </div>
                 <div class="form-group">
@@ -45,4 +55,166 @@
         </form>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// ===== AUTOCOMPLETADO DE PACIENTES =====
+(function() {
+    const searchInput = document.getElementById('paciente-search');
+    const resultsDiv = document.getElementById('paciente-results');
+    const hiddenInput = document.querySelector('input[name="paciente"]');
+    let timer;
+    let selectedPaciente = null;
+
+    // Si hay un valor inicial (edición), cargar el nombre
+    if (hiddenInput.value) {
+        fetch(`/turnos/buscar-pacientes/?q=${hiddenInput.value}`)
+            .then(r => r.json())
+            .then(data => {
+                if (data.results.length > 0) {
+                    const p = data.results.find(x => x.id == hiddenInput.value);
+                    if (p) {
+                        searchInput.value = p.nombre_completo;
+                        selectedPaciente = p;
+                    }
+                }
+            });
+    }
+
+    searchInput.addEventListener('input', function() {
+        clearTimeout(timer);
+        const q = this.value.trim();
+        
+        if (q.length < 1) {
+            resultsDiv.classList.remove('show');
+            return;
+        }
+
+        timer = setTimeout(() => {
+            fetch(`/turnos/buscar-pacientes/?q=${encodeURIComponent(q)}`)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.results.length === 0) {
+                        resultsDiv.innerHTML = '<div class="autocomplete-empty">No se encontraron pacientes</div>';
+                    } else {
+                        resultsDiv.innerHTML = data.results.map(p => `
+                            <div class="autocomplete-item" data-id="${p.id}" data-nombre="${p.nombre_completo}">
+                                <div class="item-title">${p.nombre_completo}</div>
+                                <div class="item-sub">DNI: ${p.dni} · ${p.obra_social}</div>
+                            </div>
+                        `).join('');
+                    }
+                    resultsDiv.classList.add('show');
+                });
+        }, 200);
+    });
+
+    searchInput.addEventListener('focus', function() {
+        if (this.value.trim().length > 0) {
+            resultsDiv.classList.add('show');
+        }
+    });
+
+    // Seleccionar paciente
+    resultsDiv.addEventListener('click', function(e) {
+        const item = e.target.closest('.autocomplete-item');
+        if (item) {
+            selectedPaciente = {
+                id: item.dataset.id,
+                nombre: item.dataset.nombre
+            };
+            searchInput.value = item.dataset.nombre;
+            hiddenInput.value = item.dataset.id;
+            resultsDiv.classList.remove('show');
+        }
+    });
+
+    // Cerrar al hacer click fuera
+    document.addEventListener('click', function(e) {
+        if (!searchInput.contains(e.target) && !resultsDiv.contains(e.target)) {
+            resultsDiv.classList.remove('show');
+        }
+    });
+})();
+
+// ===== AUTOCOMPLETADO DE PROFESIONALES =====
+(function() {
+    const searchInput = document.getElementById('profesional-search');
+    const resultsDiv = document.getElementById('profesional-results');
+    const hiddenInput = document.querySelector('input[name="profesional"]');
+    let timer;
+    let selectedProfesional = null;
+
+    // Si hay un valor inicial (edición), cargar el nombre
+    if (hiddenInput.value) {
+        fetch(`/turnos/buscar-profesionales/?q=${hiddenInput.value}`)
+            .then(r => r.json())
+            .then(data => {
+                if (data.results.length > 0) {
+                    const p = data.results.find(x => x.id == hiddenInput.value);
+                    if (p) {
+                        searchInput.value = p.nombre_completo;
+                        selectedProfesional = p;
+                    }
+                }
+            });
+    }
+
+    searchInput.addEventListener('input', function() {
+        clearTimeout(timer);
+        const q = this.value.trim();
+        
+        if (q.length < 1) {
+            resultsDiv.classList.remove('show');
+            return;
+        }
+
+        timer = setTimeout(() => {
+            fetch(`/turnos/buscar-profesionales/?q=${encodeURIComponent(q)}`)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.results.length === 0) {
+                        resultsDiv.innerHTML = '<div class="autocomplete-empty">No se encontraron profesionales</div>';
+                    } else {
+                        resultsDiv.innerHTML = data.results.map(p => `
+                            <div class="autocomplete-item" data-id="${p.id}" data-nombre="${p.nombre_completo}">
+                                <div class="item-title">${p.nombre_completo}</div>
+                                <div class="item-sub">${p.especialidad}</div>
+                            </div>
+                        `).join('');
+                    }
+                    resultsDiv.classList.add('show');
+                });
+        }, 200);
+    });
+
+    searchInput.addEventListener('focus', function() {
+        if (this.value.trim().length > 0) {
+            resultsDiv.classList.add('show');
+        }
+    });
+
+    // Seleccionar profesional
+    resultsDiv.addEventListener('click', function(e) {
+        const item = e.target.closest('.autocomplete-item');
+        if (item) {
+            selectedProfesional = {
+                id: item.dataset.id,
+                nombre: item.dataset.nombre
+            };
+            searchInput.value = item.dataset.nombre;
+            hiddenInput.value = item.dataset.id;
+            resultsDiv.classList.remove('show');
+        }
+    });
+
+    // Cerrar al hacer click fuera
+    document.addEventListener('click', function(e) {
+        if (!searchInput.contains(e.target) && !resultsDiv.contains(e.target)) {
+            resultsDiv.classList.remove('show');
+        }
+    });
+})();
+</script>
 {% endblock %}
