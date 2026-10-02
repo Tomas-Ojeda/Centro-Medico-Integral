@@ -104,10 +104,9 @@ class TurnoAgendaView(LoginRequiredMixin, ListView):
         }
         
         # Obtener el primer día del mes y el número de días
+        # calendar.monthrange devuelve (primer_dia_semana, dias_en_mes)
+        # donde primer_dia_semana: 0=lunes, 1=martes, ..., 6=domingo
         primer_dia_semana, dias_en_mes = calendar.monthrange(anio, mes)
-        
-        # Ajustar para que la semana empiece en lunes (0=lunes, 6=domingo)
-        primer_dia_semana = (primer_dia_semana - 1) % 7
         
         # Obtener todos los turnos del mes
         turnos_mes = Turno.objects.filter(
