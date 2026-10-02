@@ -16,6 +16,9 @@ SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = 'DENY'
 
+# CSRF - Confiar en el dominio de Render
+CSRF_TRUSTED_ORIGINS = ['https://centro-medico-integral.onrender.com']
+
 # Base de datos (Render configura DATABASE_URL automáticamente)
 DATABASES = {
     'default': dj_database_url.config(
