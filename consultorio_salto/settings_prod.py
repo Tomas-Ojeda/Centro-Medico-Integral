@@ -11,7 +11,7 @@ ALLOWED_HOSTS = ['centro-medico-integral.onrender.com', 'localhost', '127.0.0.1'
 # Seguridad
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
-SECURE_SSL_REDIRECT = True
+SECURE_SSL_REDIRECT = False  # Render maneja HTTPS a nivel de Nginx
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = 'DENY'
