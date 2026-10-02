@@ -5,9 +5,6 @@
 *.key
 *.pem
 
-# Secretos de Django
-consultorio_salto/settings_prod.py
-
 # Credenciales de BD
 docker/db_creds*
 
