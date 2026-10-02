@@ -68,7 +68,7 @@
 <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
     <span style="font-size:16px;">📅</span>
     <strong style="font-size:16px;color:var(--text-primary);">
-        {{ fecha_seleccionada|date:"l d \d\e F, Y" }}
+        {% load custom_filters %}{{ fecha_seleccionada|formatear_fecha_es }}
     </strong>
     {% if fecha_seleccionada == hoy %}
     <span class="badge badge-confirmado">Hoy</span>
@@ -90,9 +90,9 @@
             📅 {{ calendario.mes_nombre }} {{ calendario.anio }}
         </h3>
         <div style="display:flex;gap:8px;">
-            <a href="?fecha={{ calendario.mes|add:'-1' }}-01&vista=calendario" class="btn btn-outline btn-sm">← Mes anterior</a>
-            <a href="?fecha={{ hoy|date:'Y-m-d' }}&vista=calendario" class="btn btn-outline btn-sm">Hoy</a>
-            <a href="?fecha={{ calendario.mes|add:'1' }}-01&vista=calendario" class="btn btn-outline btn-sm">Mes siguiente →</a>
+            <a href="{% url 'turnos:agenda' %}?fecha={{ calendario.mes_anterior_str }}&vista=calendario" class="btn btn-outline btn-sm">← Mes anterior</a>
+            <a href="{% url 'turnos:agenda' %}?fecha={{ hoy|date:'Y-m-d' }}&vista=calendario" class="btn btn-outline btn-sm">Hoy</a>
+            <a href="{% url 'turnos:agenda' %}?fecha={{ calendario.mes_siguiente_str }}&vista=calendario" class="btn btn-outline btn-sm">Mes siguiente →</a>
         </div>
     </div>
     

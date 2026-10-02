@@ -81,6 +81,28 @@ class TurnoAgendaView(LoginRequiredMixin, ListView):
         mes = self.fecha_seleccionada.month
         anio = self.fecha_seleccionada.year
         
+        # Calcular mes anterior y siguiente
+        if mes == 1:
+            mes_anterior = 12
+            anio_anterior = anio - 1
+        else:
+            mes_anterior = mes - 1
+            anio_anterior = anio
+        
+        if mes == 12:
+            mes_siguiente = 1
+            anio_siguiente = anio + 1
+        else:
+            mes_siguiente = mes + 1
+            anio_siguiente = anio
+        
+        # Nombres de meses en español
+        meses_espanol = {
+            1: 'Enero', 2: 'Febrero', 3: 'Marzo', 4: 'Abril',
+            5: 'Mayo', 6: 'Junio', 7: 'Julio', 8: 'Agosto',
+            9: 'Septiembre', 10: 'Octubre', 11: 'Noviembre', 12: 'Diciembre'
+        }
+        
         # Obtener el primer día del mes y el número de días
         primer_dia_semana, dias_en_mes = calendar.monthrange(anio, mes)
         
@@ -134,10 +156,14 @@ class TurnoAgendaView(LoginRequiredMixin, ListView):
         
         ctx['calendario'] = {
             'semanas': semanas,
-            'mes_nombre': calendar.month_name[mes],
+            'mes_nombre': meses_espanol[mes],
             'anio': anio,
             'mes': mes,
+            'mes_anterior_str': f'{anio_anterior}-{mes_anterior:02d}-01',
+            'mes_siguiente_str': f'{anio_siguiente}-{mes_siguiente:02d}-01',
         }
+        
+        return ctx
         
         return ctx
 

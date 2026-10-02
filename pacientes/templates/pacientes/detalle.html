@@ -138,6 +138,17 @@
                             <p>{{ campo_adicional.valor }}</p>
                         </div>
                         {% endfor %}
+                        {% if consulta.archivo_adjunto %}
+                        <div class="timeline-section">
+                            <label>Archivo adjunto</label>
+                            <a href="{% url 'historias:descargar_adjunto' consulta.pk %}" target="_blank" class="file-link">
+                                📎 Ver archivo
+                            </a>
+                            <a href="{% url 'historias:descargar_adjunto' consulta.pk %}" download class="file-link" style="margin-left:12px;">
+                                ⬇ Descargar
+                            </a>
+                        </div>
+                        {% endif %}
                         <div style="display:flex;gap:8px;margin-top:10px;">
                             <a href="{% url 'historias:editar_consulta' consulta.pk %}" class="btn btn-outline btn-sm">✏️ Editar</a>
                             <a href="{% url 'historias:eliminar_consulta' consulta.pk %}" class="btn btn-danger btn-sm">🗑</a>

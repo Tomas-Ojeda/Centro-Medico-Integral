@@ -53,10 +53,10 @@
                     {{ form.archivo_adjunto }}
                     {% if form.instance and form.instance.archivo_adjunto %}
                     <div style="margin-top:8px;">
-                        <a href="{{ form.instance.archivo_adjunto.url }}" target="_blank" class="file-link">
+                        <a href="{% url 'historias:descargar_adjunto' form.instance.pk %}" target="_blank" class="file-link">
                             📎 Ver archivo actual
                         </a>
-                        <a href="{{ form.instance.archivo_adjunto.url }}" download class="file-link" style="margin-left:12px;">
+                        <a href="{% url 'historias:descargar_adjunto' form.instance.pk %}" download class="file-link" style="margin-left:12px;">
                             ⬇ Descargar
                         </a>
                     </div>
