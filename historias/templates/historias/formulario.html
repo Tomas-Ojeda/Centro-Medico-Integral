@@ -78,6 +78,7 @@
                         <div class="form-group full">
                             <label>{{ campo.nombre }}</label>
                             {{ form|get_field:campo.pk }}
+                            <button type="button" onclick="limpiarCampo(this)" style="margin-top:4px;padding:4px 8px;font-size:11px;background:transparent;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--text-secondary);">Limpiar</button>
                         </div>
                     </div>
                     {% endfor %}
@@ -88,6 +89,7 @@
                                 <div class="form-group full">
                                     <label>{{ valor.campo.nombre }}</label>
                                     <input type="text" name="campo_adicional_{{ valor.campo.pk }}" value="{{ valor.valor }}" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;">
+                                    <button type="button" onclick="limpiarCampo(this)" style="margin-top:4px;padding:4px 8px;font-size:11px;background:transparent;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--text-secondary);">Limpiar</button>
                                 </div>
                             </div>
                             {% endif %}
@@ -159,6 +161,14 @@ function eliminarCampoAdicional(id) {
     const campo = document.getElementById(`campo-${id}`);
     if (campo) {
         campo.remove();
+    }
+}
+
+function limpiarCampo(button) {
+    const formGroup = button.closest('.form-group');
+    const input = formGroup.querySelector('input, select, textarea');
+    if (input) {
+        input.value = '';
     }
 }
 </script>

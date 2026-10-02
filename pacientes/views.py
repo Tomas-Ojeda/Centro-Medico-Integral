@@ -263,16 +263,6 @@ class DescargarHistoriaPDFView(LoginRequiredMixin, View):
                 if consulta.tratamiento:
                     story.append(Paragraph(f'<b>Tratamiento:</b> {consulta.tratamiento}', styles['Value']))
                 
-                # Campos adicionales
-                campos_adicionales = ValorCampoAdicional.objects.filter(consulta=consulta).select_related('campo')
-                if campos_adicionales.exists():
-                    story.append(Spacer(1, 4))
-                    for campo in campos_adicionales:
-                        story.append(Paragraph(
-                            f'<b>{campo.campo.nombre}:</b> {campo.valor}',
-                            styles['Value']
-                        ))
-                
                 story.append(Spacer(1, 12))
         
         # Pie de página

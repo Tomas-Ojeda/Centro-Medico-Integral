@@ -54,6 +54,11 @@
                     <div class="form-group">
                         <label>Especialidad *</label>
                         {{ form.especialidad }}
+                        <datalist id="especialidades-list">
+                            {% for esp in especialidades %}
+                            <option value="{{ esp }}">
+                            {% endfor %}
+                        </datalist>
                     </div>
                     <div class="form-group">
                         <label>Mat. Nacional *</label>

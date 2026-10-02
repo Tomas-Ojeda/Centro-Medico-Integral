@@ -2,7 +2,7 @@ from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.urls import reverse_lazy
 from django.db.models import Q
-from .models import Profesional
+from .models import Profesional, Especialidad
 from .forms import ProfesionalForm
 
 
@@ -37,6 +37,7 @@ class ProfesionalCreateView(LoginRequiredMixin, CreateView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx['titulo'] = 'Nuevo Profesional'
+        ctx['especialidades'] = Especialidad.values
         return ctx
 
 
@@ -49,6 +50,7 @@ class ProfesionalUpdateView(LoginRequiredMixin, UpdateView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx['titulo'] = f'Editar: {self.object}'
+        ctx['especialidades'] = Especialidad.values
         return ctx
 
 

@@ -109,8 +109,8 @@ class ConsultaForm(forms.ModelForm):
                 tipo = datos.get('tipo', 'texto').strip()
                 valor = datos.get('valor', '').strip()
                 
-                # Solo guardar si hay nombre y valor
-                if nombre and valor:
+                # Solo guardar si hay nombre (el valor puede estar vacío para eliminar)
+                if nombre:
                     # Crear o obtener el CampoAdicional
                     campo_adicional, created = CampoAdicional.objects.get_or_create(
                         nombre=nombre,
@@ -125,11 +125,18 @@ class ConsultaForm(forms.ModelForm):
                         campo_adicional.activo = True
                         campo_adicional.save()
                     
-                    # Guardar el valor
-                    ValorCampoAdicional.objects.update_or_create(
-                        consulta=consulta,
-                        campo=campo_adicional,
-                        defaults={'valor': valor}
-                    )
+                    # Guardar o eliminar el valor
+                    if valor:
+                        ValorCampoAdicional.objects.update_or_create(
+                            consulta=consulta,
+                            campo=campo_adicional,
+                            defaults={'valor': valor}
+                        )
+                    else:
+                        # Si el valor está vacío, eliminar el registro
+                        ValorCampoAdicional.objects.filter(
+                            consulta=consulta,
+                            campo=campo_adicional
+                        ).delete()
         
         return consulta

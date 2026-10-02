@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Centro Médico Integral{% endblock %}</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
         /* ===== CSS RESET & BASE ===== */
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -540,13 +541,147 @@
         }
         .file-link:hover { text-decoration: underline; }
 
+        /* ===== ANIMATIONS ===== */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes slideInLeft {
+            from { opacity: 0; transform: translateX(-20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes slideInRight {
+            from { opacity: 0; transform: translateX(20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes scaleIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        
+        .animate-fade-in { animation: fadeIn 0.4s ease-out; }
+        .animate-slide-left { animation: slideInLeft 0.4s ease-out; }
+        .animate-slide-right { animation: slideInRight 0.4s ease-out; }
+        .animate-scale-in { animation: scaleIn 0.3s ease-out; }
+        
+        /* Staggered animations for cards */
+        .stats-grid .stat-card:nth-child(1) { animation-delay: 0.05s; }
+        .stats-grid .stat-card:nth-child(2) { animation-delay: 0.1s; }
+        .stats-grid .stat-card:nth-child(3) { animation-delay: 0.15s; }
+        .stats-grid .stat-card:nth-child(4) { animation-delay: 0.2s; }
+        
+        /* Smooth transitions for interactive elements */
+        .card, .stat-card, .btn, .nav-item, .badge, .turn-stat {
+            transition: all 0.2s ease;
+        }
+        
+        /* Hover lift effect for cards */
+        .card:hover, .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px var(--shadow);
+        }
+        
+        /* Button press effect */
+        .btn:active {
+            transform: scale(0.98);
+        }
+        
+        /* Smooth theme transition */
+        *, *::before, *::after {
+            transition-property: background-color, border-color, color, fill, stroke;
+            transition-duration: 0.2s;
+            transition-timing-function: ease;
+        }
+        
+        /* Override for elements that shouldn't transition */
+        input, select, textarea, .autocomplete-list {
+            transition: border-color 0.15s, box-shadow 0.15s;
+        }
+
         /* ===== RESPONSIVE ===== */
+        @media (max-width: 1024px) {
+            .sidebar { width: 220px; }
+            .main-content { margin-left: 220px; }
+            .form-grid.cols-3 { grid-template-columns: 1fr 1fr; }
+        }
+        
         @media (max-width: 768px) {
-            .sidebar { transform: translateX(-100%); }
+            .sidebar { transform: translateX(-100%); width: 260px; }
             .main-content { margin-left: 0; }
             .form-grid { grid-template-columns: 1fr; }
+            .form-grid.cols-3 { grid-template-columns: 1fr; }
             .info-grid { grid-template-columns: 1fr; }
             .turn-stats { grid-template-columns: repeat(2, 1fr); }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            .page-header { padding: 16px 20px; }
+            .page-body { padding: 20px; }
+            .card { padding: 16px; }
+            .footer-links { gap: 12px; }
+        }
+        
+        @media (max-width: 480px) {
+            .stats-grid { grid-template-columns: 1fr; }
+            .turn-stats { grid-template-columns: 1fr 1fr; }
+            .page-title h1 { font-size: 18px; }
+            .btn { padding: 8px 14px; font-size: 12px; }
+            .form-actions { flex-direction: column; }
+            .form-actions .btn { width: 100%; justify-content: center; }
+        }
+
+        /* ===== FOOTER ===== */
+        .footer {
+            margin-top: 40px;
+            padding: 24px 20px;
+            background: var(--bg-card);
+            border-top: 1px solid var(--border);
+            text-align: center;
+        }
+        .footer-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 16px;
+        }
+        .footer-links {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+        }
+        .footer-link {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            text-decoration: none;
+            color: var(--text-secondary);
+            font-size: 13px;
+            transition: color 0.2s;
+        }
+        .footer-link:hover {
+            color: var(--accent);
+        }
+        .footer-icon {
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+        .footer-address {
+            font-size: 12px;
+            color: var(--text-light);
+            margin-top: 8px;
+        }
+        [data-theme="dark"] .footer {
+            background: var(--bg-card);
+            border-top-color: var(--border);
         }
     </style>
 </head>
@@ -556,7 +691,7 @@
 <aside class="sidebar">
     <div class="sidebar-brand">
         <div class="brand-top">
-            <div class="brand-logo">♡</div>
+            <div class="brand-logo"><i class="fas fa-heartbeat"></i></div>
             <div>
                 <div class="brand-name">Centro Médico Integral</div>
                 <div class="brand-sub">Salto de las Rosas</div>
@@ -575,22 +710,22 @@
 
     <nav class="sidebar-nav">
         <a href="{% url 'dashboard:index' %}" class="nav-item {% block nav_dashboard %}{% endblock %}">
-            <span class="nav-icon">⊞</span> Dashboard
+            <span class="nav-icon"><i class="fas fa-th-large"></i></span> Dashboard
         </a>
         <a href="{% url 'pacientes:lista' %}" class="nav-item {% block nav_pacientes %}{% endblock %}">
-            <span class="nav-icon">👤</span> Pacientes
+            <span class="nav-icon"><i class="fas fa-users"></i></span> Pacientes
         </a>
         <a href="{% url 'turnos:agenda' %}" class="nav-item {% block nav_turnos %}{% endblock %}">
-            <span class="nav-icon">📅</span> Agenda
+            <span class="nav-icon"><i class="fas fa-calendar-alt"></i></span> Agenda
         </a>
         <a href="{% url 'profesionales:lista' %}" class="nav-item {% block nav_profesionales %}{% endblock %}">
-            <span class="nav-icon">🩺</span> Profesionales
+            <span class="nav-icon"><i class="fas fa-user-md"></i></span> Profesionales
         </a>
     </nav>
 
     <div class="sidebar-footer">
         <a href="{% url 'logout' %}" class="nav-item">
-            <span class="nav-icon">→</span> Cerrar Sesión
+            <span class="nav-icon"><i class="fas fa-sign-out-alt"></i></span> Cerrar Sesión
         </a>
     </div>
     {% endif %}
@@ -607,8 +742,8 @@
         <div style="display:flex;align-items:center;gap:12px;">
             {% block header_action %}{% endblock %}
             <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" title="Cambiar tema">
-                <span class="icon-sun">☀️</span>
-                <span class="icon-moon">🌙</span>
+                <span class="icon-sun"><i class="fas fa-sun"></i></span>
+                <span class="icon-moon"><i class="fas fa-moon"></i></span>
             </button>
         </div>
     </div>
@@ -623,9 +758,36 @@
     </div>
     {% endif %}
 
-    <div class="page-body">
+    <div class="page-body animate-fade-in">
         {% block content %}{% endblock %}
     </div>
+
+    <!-- FOOTER -->
+    <footer class="footer">
+        <div class="footer-title">Centro Médico Integral - Salto de las Rosas</div>
+        <div class="footer-links">
+            <a href="https://www.instagram.com/consultoriosmedicos.salto/" target="_blank" rel="noopener noreferrer" class="footer-link">
+                <span class="footer-icon"><i class="fab fa-instagram"></i></span>
+                <span>Instagram</span>
+            </a>
+            <a href="tel:2604018478" class="footer-link">
+                <span class="footer-icon"><i class="fas fa-phone"></i></span>
+                <span>2604018478</span>
+            </a>
+            <a href="https://www.facebook.com/consultorios.medicos.2023" target="_blank" rel="noopener noreferrer" class="footer-link">
+                <span class="footer-icon"><i class="fab fa-facebook"></i></span>
+                <span>Facebook</span>
+            </a>
+            <a href="https://maps.google.com/?q=Mendoza,+San+Rafael,+Salto+de+las+Rosas,+Ruta+Nacional+143" target="_blank" rel="noopener noreferrer" class="footer-link">
+                <span class="footer-icon"><i class="fas fa-map-marker-alt"></i></span>
+                <span>Google Maps</span>
+            </a>
+        </div>
+        <div class="footer-address">
+            <i class="fas fa-map-pin"></i>
+            Mendoza, San Rafael, Salto de las Rosas - Ruta Nacional 143
+        </div>
+    </footer>
 </div>
 
 <script>

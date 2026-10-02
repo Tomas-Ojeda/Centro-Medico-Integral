@@ -22,7 +22,7 @@ class Profesional(models.Model):
     dni = models.CharField(max_length=10, unique=True)
     matricula_nacional = models.CharField(max_length=20, unique=True)
     matricula_provincial = models.CharField(max_length=20, blank=True)
-    especialidad = models.CharField(max_length=50, choices=Especialidad.choices)
+    especialidad = models.CharField(max_length=50)
     telefono = models.CharField(max_length=25, blank=True)
     email = models.EmailField(unique=True, blank=True, null=True)
     foto = models.ImageField(upload_to='profesionales/', blank=True, null=True)
