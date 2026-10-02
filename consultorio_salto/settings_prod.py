@@ -35,3 +35,8 @@ STATIC_URL = '/static/'
 # Media files
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+# WhiteNoise - Sirve archivos estáticos y media en producción
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+WHITENOISE_MEDIA_ROOT = MEDIA_ROOT
+WHITENOISE_MEDIA_URL = MEDIA_URL

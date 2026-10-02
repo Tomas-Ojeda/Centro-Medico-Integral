@@ -53,6 +53,7 @@ class TurnoAgendaView(LoginRequiredMixin, ListView):
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
+        ctx['vista'] = self.request.GET.get('vista', 'lista')
         ctx['fecha_seleccionada'] = self.fecha_seleccionada
         ctx['hoy'] = date.today()
         ctx['fecha_str'] = self.fecha_seleccionada.strftime('%Y-%m-%d')
@@ -72,6 +73,72 @@ class TurnoAgendaView(LoginRequiredMixin, ListView):
             'realizados': todos_dia.filter(estado='realizado').count(),
             'ausentes': todos_dia.filter(estado='ausente').count(),
         }
+        
+        # Datos para el calendario mensual
+        import calendar
+        from datetime import datetime
+        
+        mes = self.fecha_seleccionada.month
+        anio = self.fecha_seleccionada.year
+        
+        # Obtener el primer día del mes y el número de días
+        primer_dia_semana, dias_en_mes = calendar.monthrange(anio, mes)
+        
+        # Ajustar para que la semana empiece en lunes (0=lunes, 6=domingo)
+        primer_dia_semana = (primer_dia_semana - 1) % 7
+        
+        # Obtener todos los turnos del mes
+        turnos_mes = Turno.objects.filter(
+            fecha_hora__year=anio,
+            fecha_hora__month=mes
+        ).select_related('paciente', 'profesional')
+        
+        # Crear diccionario de turnos por día
+        turnos_por_dia = {}
+        for turno in turnos_mes:
+            dia = turno.fecha_hora.day
+            if dia not in turnos_por_dia:
+                turnos_por_dia[dia] = []
+            turnos_por_dia[dia].append({
+                'id': turno.pk,
+                'hora': turno.fecha_hora.strftime('%H:%M'),
+                'paciente': f'{turno.paciente.apellido}, {turno.paciente.nombre}',
+                'estado': turno.estado,
+                'especialidad': turno.especialidad,
+            })
+        
+        # Construir las semanas del calendario
+        semanas = []
+        semana_actual = []
+        
+        # Agregar días vacíos al principio
+        for _ in range(primer_dia_semana):
+            semana_actual.append(None)
+        
+        # Agregar los días del mes
+        for dia in range(1, dias_en_mes + 1):
+            semana_actual.append({
+                'dia': dia,
+                'es_hoy': dia == date.today().day and mes == date.today().month and anio == date.today().year,
+                'turnos': turnos_por_dia.get(dia, [])
+            })
+            if len(semana_actual) == 7:
+                semanas.append(semana_actual)
+                semana_actual = []
+        
+        # Agregar la última semana si no está completa
+        if semana_actual:
+            while len(semana_actual) < 7:
+                semana_actual.append(None)
+            semanas.append(semana_actual)
+        
+        ctx['calendario'] = {
+            'semanas': semanas,
+            'mes_nombre': calendar.month_name[mes],
+            'anio': anio,
+            'mes': mes,
+        }
+        
         return ctx
 
 

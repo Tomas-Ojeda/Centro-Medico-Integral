@@ -6,7 +6,11 @@
 {% block page_subtitle %}{{ total_dia }} turno{{ total_dia|pluralize }} para hoy{% endblock %}
 
 {% block header_action %}
-<div style="display:flex;gap:8px;">
+<div style="display:flex;gap:8px;align-items:center;">
+    <div style="display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;">
+        <a href="?vista=lista" class="btn btn-sm" style="border-radius:0;{% if vista != 'calendario' %}background:var(--sidebar-bg);color:#fff;{% endif %}">📋 Lista</a>
+        <a href="?vista=calendario" class="btn btn-sm" style="border-radius:0;{% if vista == 'calendario' %}background:var(--sidebar-bg);color:#fff;{% endif %}">📅 Calendario</a>
+    </div>
     <a href="{% url 'turnos:exportar_csv' %}?fecha={{ fecha_str }}" class="btn btn-outline" title="Exportar agenda del día a CSV">⬇ Exportar CSV</a>
     <a href="{% url 'turnos:crear' %}" class="btn btn-primary">+ Nuevo Turno</a>
 </div>
@@ -72,11 +76,63 @@
 </div>
 
 <!-- NAV DÍAS -->
-<div style="display:flex;gap:8px;margin-bottom:20px;">
-    <a href="?fecha={{ fecha_anterior }}" class="btn btn-outline btn-sm">← Día anterior</a>
-    <a href="?fecha={{ hoy|date:'Y-m-d' }}" class="btn btn-outline btn-sm">Hoy</a>
-    <a href="?fecha={{ fecha_siguiente }}" class="btn btn-outline btn-sm">Día siguiente →</a>
+<div style="display:flex;gap:8px;margin-bottom:20px;align-items:center;">
+    <a href="?fecha={{ fecha_anterior }}&vista={{ vista }}" class="btn btn-outline btn-sm">← Día anterior</a>
+    <a href="?fecha={{ hoy|date:'Y-m-d' }}&vista={{ vista }}" class="btn btn-outline btn-sm">Hoy</a>
+    <a href="?fecha={{ fecha_siguiente }}&vista={{ vista }}" class="btn btn-outline btn-sm">Día siguiente →</a>
 </div>
+
+{% if vista == 'calendario' %}
+<!-- VISTA CALENDARIO -->
+<div class="card" style="padding:20px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+        <h3 style="font-size:18px;font-weight:700;color:var(--text-primary);">
+            📅 {{ calendario.mes_nombre }} {{ calendario.anio }}
+        </h3>
+        <div style="display:flex;gap:8px;">
+            <a href="?fecha={{ calendario.mes|add:'-1' }}-01&vista=calendario" class="btn btn-outline btn-sm">← Mes anterior</a>
+            <a href="?fecha={{ hoy|date:'Y-m-d' }}&vista=calendario" class="btn btn-outline btn-sm">Hoy</a>
+            <a href="?fecha={{ calendario.mes|add:'1' }}-01&vista=calendario" class="btn btn-outline btn-sm">Mes siguiente →</a>
+        </div>
+    </div>
+    
+    <table style="width:100%;border-collapse:collapse;">
+        <thead>
+            <tr>
+                <th style="padding:8px;text-align:center;font-size:11px;color:var(--text-secondary);">Lun</th>
+                <th style="padding:8px;text-align:center;font-size:11px;color:var(--text-secondary);">Mar</th>
+                <th style="padding:8px;text-align:center;font-size:11px;color:var(--text-secondary);">Mié</th>
+                <th style="padding:8px;text-align:center;font-size:11px;color:var(--text-secondary);">Jue</th>
+                <th style="padding:8px;text-align:center;font-size:11px;color:var(--text-secondary);">Vie</th>
+                <th style="padding:8px;text-align:center;font-size:11px;color:var(--text-secondary);">Sáb</th>
+                <th style="padding:8px;text-align:center;font-size:11px;color:var(--text-secondary);">Dom</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for semana in calendario.semanas %}
+            <tr>
+                {% for dia in semana %}
+                <td style="padding:4px;vertical-align:top;{% if dia %}border:1px solid var(--border);{% endif %}">
+                    {% if dia %}
+                    <div style="min-height:80px;padding:4px;">
+                        <div style="font-size:12px;font-weight:600;{% if dia.es_hoy %}background:var(--accent);color:#1a2035;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;{% endif %}">
+                            {{ dia.dia }}
+                        </div>
+                        {% for turno in dia.turnos %}
+                        <a href="{% url 'turnos:editar' turno.id %}" style="display:block;font-size:10px;padding:2px 4px;margin-top:2px;border-radius:4px;background:{% if turno.estado == 'pendiente' %}#fffbeb{% elif turno.estado == 'confirmado' %}#eff6ff{% elif turno.estado == 'realizado' %}#f0fdf4{% else %}#f8fafc{% endif %};color:var(--text-primary);text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                            {{ turno.hora }} {{ turno.paciente|truncatechars:15 }}
+                        </a>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </td>
+                {% endfor %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
 
 {% if turnos %}
 <div class="card" style="padding:0;overflow:hidden;">
@@ -149,6 +205,7 @@
         <a href="{% url 'turnos:crear' %}" class="btn btn-primary" style="margin-top:16px;">+ Agendar turno</a>
     </div>
 </div>
+{% endif %}
 {% endif %}
 
 {% endblock %}
