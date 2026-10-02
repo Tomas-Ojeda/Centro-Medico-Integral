@@ -1,12 +1,21 @@
+import os
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = 'django-insecure-centromedico-salto-rosas-2026-change-in-production'
+# ─── Seguridad (leer de variables de entorno) ───────────────────
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-centromedico-salto-rosas-2026-change-in-production')
+DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True'
+ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
-DEBUG = True
+# Cookies seguras (activar en producción con HTTPS)
+SESSION_COOKIE_SECURE = os.environ.get('SESSION_COOKIE_SECURE', 'False') == 'True'
+CSRF_COOKIE_SECURE = os.environ.get('CSRF_COOKIE_SECURE', 'False') == 'True'
+SECURE_SSL_REDIRECT = os.environ.get('SECURE_SSL_REDIRECT', 'False') == 'True'
 
-ALLOWED_HOSTS = ['*']
+# Expiración de sesión (1 hora por defecto)
+SESSION_COOKIE_AGE = int(os.environ.get('SESSION_COOKIE_AGE', '3600'))
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 
 INSTALLED_APPS = [
     'django.contrib.admin',
