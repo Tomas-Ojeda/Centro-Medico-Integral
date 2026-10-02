@@ -724,9 +724,12 @@
     </nav>
 
     <div class="sidebar-footer">
-        <a href="{% url 'logout' %}" class="nav-item">
-            <span class="nav-icon"><i class="fas fa-sign-out-alt"></i></span> Cerrar Sesión
-        </a>
+        <form method="post" action="{% url 'logout' %}" style="margin:0;">
+            {% csrf_token %}
+            <button type="submit" class="nav-item" style="width:100%;background:none;border:none;cursor:pointer;text-align:left;">
+                <span class="nav-icon"><i class="fas fa-sign-out-alt"></i></span> Cerrar Sesión
+            </button>
+        </form>
     </div>
     {% endif %}
 </aside>
