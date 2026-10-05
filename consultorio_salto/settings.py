@@ -95,4 +95,4 @@ LOGOUT_REDIRECT_URL = '/accounts/login/'
 
 # ─── Importación de planillas ──────────────────────────────────
 # Ponés tu API key de Anthropic acá (console.anthropic.com → API Keys)
-ANTHROPIC_API_KEY = 'TU_API_KEY_ACA'
+ANTHROPIC_API_KEY = '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'
