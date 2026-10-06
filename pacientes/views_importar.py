@@ -164,7 +164,7 @@ class ImportarPlanillaView(LoginRequiredMixin, View):
         imagen_b64 = base64.b64encode(imagen_bytes).decode('utf-8')
 
         payload = json.dumps({
-            'model': 'claude-sonnet-4-20250514',
+            'model': 'claude-sonnet-5',
             'max_tokens': 4000,
             'messages': [{
                 'role': 'user',

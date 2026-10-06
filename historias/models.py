@@ -1,6 +1,48 @@
+import os
+import uuid
+import magic
 from django.db import models
+from django.core.exceptions import ValidationError
+from django.core.validators import FileExtensionValidator
 from pacientes.models import Paciente
 from profesionales.models import Profesional
+
+
+def ruta_adjunto_aleatoria(instance, filename):
+    """Genera una ruta aleatoria con UUID para el archivo adjunto."""
+    ext = os.path.splitext(filename)[1].lower()
+    nombre_uuid = uuid.uuid4().hex
+    return f'historias_clinicas/{nombre_uuid}{ext}'
+
+
+def validar_tipo_mime(archivo):
+    """Valida que el tipo MIME real del archivo sea permitido."""
+    MIME_PERMITIDOS = {
+        'application/pdf': '.pdf',
+        'image/jpeg': '.jpg',
+        'image/png': '.png',
+    }
+    try:
+        mime = magic.from_buffer(archivo.read(2048), mime=True)
+        archivo.seek(0)  # Rewind para no afectar la lectura posterior
+    except Exception:
+        raise ValidationError('No se pudo validar el tipo de archivo.')
+
+    if mime not in MIME_PERMITIDOS:
+        raise ValidationError(
+            f'Tipo de archivo no permitido: {mime}. '
+            f'Solo se permiten: PDF, JPG, PNG.'
+        )
+
+
+def validar_tamano_archivo(archivo):
+    """Valida que el archivo no supere 10 MB."""
+    MAX_SIZE = 10 * 1024 * 1024  # 10 MB
+    if archivo.size > MAX_SIZE:
+        raise ValidationError(
+            f'El archivo supera el límite de 10 MB. '
+            f'Tamaño actual: {archivo.size / (1024*1024):.1f} MB.'
+        )
 
 
 class Consulta(models.Model):
@@ -17,7 +59,14 @@ class Consulta(models.Model):
     evolucion = models.TextField(blank=True, verbose_name='Evolución / Observaciones')
     tratamiento = models.TextField(blank=True, verbose_name='Tratamiento indicado')
     archivo_adjunto = models.FileField(
-        upload_to='historias_clinicas/%Y/%m/', blank=True, null=True
+        upload_to=ruta_adjunto_aleatoria,
+        blank=True,
+        null=True,
+        validators=[
+            FileExtensionValidator(allowed_extensions=['pdf', 'jpg', 'jpeg', 'png']),
+            validar_tipo_mime,
+            validar_tamano_archivo,
+        ],
     )
     es_mas_reciente = models.BooleanField(default=False)
     creado = models.DateTimeField(auto_now_add=True)

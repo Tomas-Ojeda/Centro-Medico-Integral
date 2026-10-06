@@ -1,10 +1,17 @@
 import os
 from pathlib import Path
+from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # ─── Seguridad (leer de variables de entorno) ───────────────────
-SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-centromedico-salto-rosas-2026-change-in-production')
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY')
+if not SECRET_KEY:
+    raise ImproperlyConfigured(
+        'La variable de entorno DJANGO_SECRET_KEY no está definida. '
+        'Generá una clave segura con: python -c "import secrets; print(secrets.token_urlsafe(50))"'
+    )
+
 DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True'
 ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
@@ -94,5 +101,6 @@ LOGIN_REDIRECT_URL = '/dashboard/'
 LOGOUT_REDIRECT_URL = '/accounts/login/'
 
 # ─── Importación de planillas ──────────────────────────────────
-# Ponés tu API key de Anthropic acá (console.anthropic.com → API Keys)
-ANTHROPIC_API_KEY = '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'
+# La API key se lee de la variable de entorno ANTHROPIC_API_KEY
+# (console.anthropic.com → API Keys)
+ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY', '')

@@ -4,11 +4,17 @@ Script de carga de datos iniciales para Centro Médico Integral.
 Uso: python seed_data.py
 
 Crea:
-  - 1 usuario administrador (admin / admin123)
+  - 1 usuario administrador (desde variables de entorno)
   - 6 profesionales con distintas especialidades
   - 8 pacientes con datos completos
   - Turnos para los próximos días
   - Historial clínico con consultas de ejemplo
+
+IMPORTANTE: Este script solo puede correr en modo DEBUG (desarrollo).
+Las credenciales del admin se leen de las variables de entorno:
+  - ADMIN_USERNAME
+  - ADMIN_PASSWORD
+  - ADMIN_EMAIL (opcional, default: admin@centromedico.com)
 """
 import os
 import sys
@@ -20,6 +26,7 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'consultorio_salto.settings')
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 django.setup()
 
+from django.conf import settings
 from django.contrib.auth.models import User
 from pacientes.models import Paciente
 from profesionales.models import Profesional
@@ -29,14 +36,30 @@ from django.utils import timezone
 
 
 def run():
+    # ── SEGURIDAD: No correr en producción ─────────────────────
+    if not settings.DEBUG:
+        print("❌ ERROR: Este script solo puede correr en modo DEBUG (desarrollo).")
+        print("   Configurá DJANGO_DEBUG=True para usarlo.")
+        sys.exit(1)
+
+    # ── CREDENCIALES DESDE VARIABLES DE ENTORNO ───────────────
+    admin_username = os.environ.get('ADMIN_USERNAME')
+    admin_password = os.environ.get('ADMIN_PASSWORD')
+    admin_email = os.environ.get('ADMIN_EMAIL', 'admin@centromedico.com')
+
+    if not admin_username or not admin_password:
+        print("❌ ERROR: Faltan credenciales de administrador.")
+        print("   Definí las variables de entorno ADMIN_USERNAME y ADMIN_PASSWORD.")
+        sys.exit(1)
+
     print("🚀 Iniciando carga de datos...")
 
     # ── USUARIO ADMIN ──────────────────────────────────────────
-    if not User.objects.filter(username='tomijeroj941').exists():
-        User.objects.create_superuser('tomijeroj941', 'admin@centromedico.com', 'admin123')
-        print("  ✅ Usuario admin creado: tomijeroj941 / admin123")
+    if not User.objects.filter(username=admin_username).exists():
+        User.objects.create_superuser(admin_username, admin_email, admin_password)
+        print(f"  ✅ Usuario admin creado: {admin_username}")
     else:
-        print("  ℹ️  Usuario admin ya existe.")
+        print(f"  ℹ️  Usuario admin ya existe: {admin_username}")
 
     # ── PROFESIONALES ──────────────────────────────────────────
     profs_data = [
@@ -185,7 +208,7 @@ def run():
 
     print("\n✨ ¡Datos cargados correctamente!")
     print("   Acceso: python manage.py runserver")
-    print("   Usuario: tomijeroj941 | Contraseña: admin123")
+    print(f"   Usuario: {admin_username}")
 
 
 if __name__ == '__main__':
