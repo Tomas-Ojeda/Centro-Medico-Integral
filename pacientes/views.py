@@ -243,7 +243,7 @@ class DescargarHistoriaPDFView(LoginRequiredMixin, View):
         else:
             for consulta in consultas:
                 # Encabezado de la consulta
-                fecha_str = consulta.fecha_hora.strftime('%d/%m/%Y %H:%M')
+                fecha_str = timezone.localtime(consulta.fecha_hora).strftime('%d/%m/%Y %H:%M')
                 story.append(Paragraph(
                     f'Consulta del {fecha_str} — {consulta.profesional}',
                     styles['ConsultaTitle']
@@ -268,7 +268,7 @@ class DescargarHistoriaPDFView(LoginRequiredMixin, View):
         # Pie de página
         story.append(Spacer(1, 24))
         story.append(Paragraph(
-            f'Documento generado el {timezone.now().strftime("%d/%m/%Y %H:%M")}',
+            f'Documento generado el {timezone.localtime(timezone.now()).strftime("%d/%m/%Y %H:%M")}',
             styles['Footer']
         ))
         
