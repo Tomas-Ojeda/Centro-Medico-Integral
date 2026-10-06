@@ -196,7 +196,19 @@ class ImportarPlanillaView(LoginRequiredMixin, View):
         with urllib.request.urlopen(req, timeout=60) as resp:
             data = json.loads(resp.read().decode('utf-8'))
 
-        texto = data['content'][0]['text'].strip()
+        # Buscar el bloque de texto en la respuesta (puede haber bloques de otros tipos)
+        texto = None
+        for block in data.get('content', []):
+            if block.get('type') == 'text':
+                texto = block.get('text', '').strip()
+                break
+
+        if not texto:
+            raise ValueError(
+                'La API no devolvió texto. '
+                f'Respuesta recibida: {json.dumps(data)[:200]}'
+            )
+
         # Limpiar markdown si Claude lo agrega
         if '```' in texto:
             partes = texto.split('```')
