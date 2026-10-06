@@ -15,6 +15,7 @@ from reportlab.lib.units import cm
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
+from auditoria.mixins import AuditoriaMixin
 import io
 
 
@@ -49,10 +50,12 @@ class PacienteListView(LoginRequiredMixin, ListView):
         return ctx
 
 
-class PacienteDetailView(LoginRequiredMixin, DetailView):
+class PacienteDetailView(LoginRequiredMixin, AuditoriaMixin, DetailView):
     model = Paciente
     template_name = 'pacientes/detalle.html'
     context_object_name = 'paciente'
+    accion = 'ver'
+    modelo = 'Paciente'
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
@@ -60,6 +63,11 @@ class PacienteDetailView(LoginRequiredMixin, DetailView):
         ctx['turnos'] = self.object.turnos.select_related('profesional').order_by('-fecha_hora')[:5]
         ctx['pacientes_sidebar'] = Paciente.objects.all()[:20]
         return ctx
+
+    def get(self, request, *args, **kwargs):
+        response = super().get(request, *args, **kwargs)
+        self.registrar_acceso(request, self.get_object())
+        return response
 
 
 class PacienteCreateView(LoginRequiredMixin, CreateView):
@@ -94,11 +102,14 @@ class PacienteDeleteView(LoginRequiredMixin, DeleteView):
     success_url = reverse_lazy('pacientes:lista')
 
 
-class DescargarHistoriaPDFView(LoginRequiredMixin, View):
+class DescargarHistoriaPDFView(LoginRequiredMixin, AuditoriaMixin, View):
     """Descarga la historia clínica completa del paciente como PDF."""
-    
+    accion = 'descargar'
+    modelo = 'Paciente'
+
     def get(self, request, pk):
         paciente = get_object_or_404(Paciente, pk=pk)
+        self.registrar_acceso(request, paciente)
         consultas = Consulta.objects.filter(paciente=paciente).select_related('profesional').order_by('-fecha_hora')
         
         # Crear el PDF

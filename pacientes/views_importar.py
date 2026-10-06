@@ -19,6 +19,7 @@ from django.http import JsonResponse
 from django.shortcuts import render
 
 from .models import Paciente, ObraSocial
+from auditoria.mixins import AuditoriaMixin
 
 # ── Constantes ────────────────────────────────────────────────
 OBRAS_VALIDAS = [c[0] for c in ObraSocial.choices]
@@ -114,8 +115,10 @@ def _fila_a_paciente(fila_dict):
 
 # ── Vistas ─────────────────────────────────────────────────────
 
-class ImportarPlanillaView(LoginRequiredMixin, View):
+class ImportarPlanillaView(LoginRequiredMixin, AuditoriaMixin, View):
     template_name = 'pacientes/importar_planilla.html'
+    accion = 'importar'
+    modelo = 'Paciente'
 
     def get(self, request):
         return render(request, self.template_name)
@@ -147,6 +150,7 @@ class ImportarPlanillaView(LoginRequiredMixin, View):
             else:
                 return JsonResponse({'error': f'Tipo de archivo no soportado: {tipo}'}, status=400)
 
+            self.registrar_acceso(request)
             return JsonResponse({'pacientes': pacientes})
 
         except Exception as e:

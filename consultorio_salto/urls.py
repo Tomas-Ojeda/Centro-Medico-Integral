@@ -11,4 +11,5 @@ urlpatterns = [
     path('profesionales/', include('profesionales.urls', namespace='profesionales')),
     path('turnos/', include('turnos.urls', namespace='turnos')),
     path('historias/', include('historias.urls', namespace='historias')),
+    path('auditoria/', include('auditoria.urls', namespace='auditoria')),
 ]

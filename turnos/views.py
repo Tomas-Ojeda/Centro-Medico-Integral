@@ -12,6 +12,7 @@ from .models import Turno, EstadoTurno
 from .forms import TurnoForm
 from profesionales.models import Profesional
 from pacientes.models import Paciente
+from auditoria.mixins import AuditoriaMixin
 
 
 class TurnoAgendaView(LoginRequiredMixin, ListView):
@@ -218,8 +219,12 @@ class BuscarProfesionalesView(LoginRequiredMixin, View):
         return JsonResponse({'results': data})
 
 
-class ExportarAgendaCSVView(LoginRequiredMixin, View):
+class ExportarAgendaCSVView(LoginRequiredMixin, AuditoriaMixin, View):
+    accion = 'exportar'
+    modelo = 'Turno'
+
     def get(self, request):
+        self.registrar_acceso(request)
         fecha_str = request.GET.get('fecha')
         try:
             from datetime import datetime
@@ -250,11 +255,13 @@ class ExportarAgendaCSVView(LoginRequiredMixin, View):
         return response
 
 
-class TurnoCreateView(LoginRequiredMixin, CreateView):
+class TurnoCreateView(LoginRequiredMixin, AuditoriaMixin, CreateView):
     model = Turno
     form_class = TurnoForm
     template_name = 'turnos/formulario.html'
     success_url = reverse_lazy('turnos:agenda')
+    accion = 'crear'
+    modelo = 'Turno'
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
@@ -268,17 +275,29 @@ class TurnoCreateView(LoginRequiredMixin, CreateView):
             initial['paciente'] = paciente_id
         return initial
 
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        self.registrar_acceso(self.request, form.instance)
+        return response
 
-class TurnoUpdateView(LoginRequiredMixin, UpdateView):
+
+class TurnoUpdateView(LoginRequiredMixin, AuditoriaMixin, UpdateView):
     model = Turno
     form_class = TurnoForm
     template_name = 'turnos/formulario.html'
     success_url = reverse_lazy('turnos:agenda')
+    accion = 'editar'
+    modelo = 'Turno'
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx['titulo'] = 'Editar Turno'
         return ctx
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        self.registrar_acceso(self.request, form.instance)
+        return response
 
 
 class TurnoDeleteView(LoginRequiredMixin, DeleteView):

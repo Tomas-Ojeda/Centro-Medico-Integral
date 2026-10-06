@@ -31,12 +31,14 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'axes',  # Bloqueo de intentos de login fallidos
     # Apps del proyecto
     'dashboard',
     'pacientes',
     'profesionales',
     'turnos',
     'historias',
+    'auditoria',
 ]
 
 MIDDLEWARE = [
@@ -46,6 +48,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'axes.middleware.AxesMiddleware',  # Debe ir después de AuthenticationMiddleware
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -99,6 +102,15 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 LOGIN_URL = '/accounts/login/'
 LOGIN_REDIRECT_URL = '/dashboard/'
 LOGOUT_REDIRECT_URL = '/accounts/login/'
+
+# ─── django-axes: Bloqueo de fuerza bruta ──────────────────────
+AUTHENTICATION_BACKENDS = [
+    'axes.backends.AxesStandaloneBackend',
+    'django.contrib.auth.backends.ModelBackend',
+]
+AXES_FAILURE_LIMIT = 5  # Intentos fallidos antes de bloquear
+AXES_COOLOFF_TIME = 0.25  # 15 minutos de bloqueo
+AXES_LOCKOUT_PARAMETERS = ['ip_address', 'username']
 
 # ─── Importación de planillas ──────────────────────────────────
 # La API key se lee de la variable de entorno ANTHROPIC_API_KEY

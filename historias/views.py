@@ -11,12 +11,15 @@ from pathlib import Path
 from pacientes.models import Paciente
 from .models import Consulta
 from .forms import ConsultaForm
+from auditoria.mixins import AuditoriaMixin
 
 
-class ConsultaCreateView(LoginRequiredMixin, CreateView):
+class ConsultaCreateView(LoginRequiredMixin, AuditoriaMixin, CreateView):
     model = Consulta
     form_class = ConsultaForm
     template_name = 'historias/formulario.html'
+    accion = 'crear'
+    modelo = 'Consulta'
 
     def get_paciente(self):
         return get_object_or_404(Paciente, pk=self.kwargs['paciente_pk'])
@@ -29,22 +32,31 @@ class ConsultaCreateView(LoginRequiredMixin, CreateView):
 
     def form_valid(self, form):
         form.instance.paciente = self.get_paciente()
-        return super().form_valid(form)
+        response = super().form_valid(form)
+        self.registrar_acceso(self.request, form.instance)
+        return response
 
     def get_success_url(self):
         return reverse('pacientes:detalle', kwargs={'pk': self.kwargs['paciente_pk']})
 
 
-class ConsultaUpdateView(LoginRequiredMixin, UpdateView):
+class ConsultaUpdateView(LoginRequiredMixin, AuditoriaMixin, UpdateView):
     model = Consulta
     form_class = ConsultaForm
     template_name = 'historias/formulario.html'
+    accion = 'editar'
+    modelo = 'Consulta'
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx['paciente'] = self.object.paciente
         ctx['titulo'] = 'Editar Consulta'
         return ctx
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        self.registrar_acceso(self.request, form.instance)
+        return response
 
     def get_success_url(self):
         return reverse('pacientes:detalle', kwargs={'pk': self.object.paciente_id})
@@ -58,11 +70,14 @@ class ConsultaDeleteView(LoginRequiredMixin, DeleteView):
         return reverse('pacientes:detalle', kwargs={'pk': self.object.paciente_id})
 
 
-class DescargarArchivoAdjuntoView(LoginRequiredMixin, View):
+class DescargarArchivoAdjuntoView(LoginRequiredMixin, AuditoriaMixin, View):
     """Vista para servir archivos adjuntos de consultas de forma segura."""
+    accion = 'descargar'
+    modelo = 'Consulta'
 
     def get(self, request, consulta_pk):
         consulta = get_object_or_404(Consulta, pk=consulta_pk)
+        self.registrar_acceso(request, consulta)
 
         if not consulta.archivo_adjunto:
             raise Http404("No hay archivo adjunto en esta consulta")
