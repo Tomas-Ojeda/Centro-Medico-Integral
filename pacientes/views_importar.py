@@ -197,8 +197,14 @@ class ImportarPlanillaView(LoginRequiredMixin, AuditoriaMixin, View):
             method='POST'
         )
 
-        with urllib.request.urlopen(req, timeout=60) as resp:
-            data = json.loads(resp.read().decode('utf-8'))
+        try:
+            with urllib.request.urlopen(req, timeout=60) as resp:
+                data = json.loads(resp.read().decode('utf-8'))
+        except urllib.error.HTTPError as e:
+            error_body = e.read().decode('utf-8', errors='replace')
+            raise ValueError(
+                f'Error {e.code} de la API de Anthropic: {error_body[:500]}'
+            )
 
         # Buscar el bloque de texto en la respuesta (puede haber bloques de otros tipos)
         texto = None
