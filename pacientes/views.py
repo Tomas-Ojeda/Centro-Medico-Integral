@@ -70,11 +70,13 @@ class PacienteDetailView(LoginRequiredMixin, AuditoriaMixin, DetailView):
         return response
 
 
-class PacienteCreateView(LoginRequiredMixin, CreateView):
+class PacienteCreateView(LoginRequiredMixin, AuditoriaMixin, CreateView):
     model = Paciente
     form_class = PacienteForm
     template_name = 'pacientes/formulario.html'
     success_url = reverse_lazy('pacientes:lista')
+    accion = 'crear'
+    modelo = 'Paciente'
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
@@ -82,12 +84,19 @@ class PacienteCreateView(LoginRequiredMixin, CreateView):
         ctx['accion'] = 'Registrar'
         return ctx
 
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        self.registrar_acceso(self.request, form.instance)
+        return response
 
-class PacienteUpdateView(LoginRequiredMixin, UpdateView):
+
+class PacienteUpdateView(LoginRequiredMixin, AuditoriaMixin, UpdateView):
     model = Paciente
     form_class = PacienteForm
     template_name = 'pacientes/formulario.html'
     success_url = reverse_lazy('pacientes:lista')
+    accion = 'editar'
+    modelo = 'Paciente'
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
@@ -95,11 +104,24 @@ class PacienteUpdateView(LoginRequiredMixin, UpdateView):
         ctx['accion'] = 'Guardar Cambios'
         return ctx
 
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        self.registrar_acceso(self.request, form.instance)
+        return response
 
-class PacienteDeleteView(LoginRequiredMixin, DeleteView):
+
+class PacienteDeleteView(LoginRequiredMixin, AuditoriaMixin, DeleteView):
     model = Paciente
     template_name = 'pacientes/confirmar_eliminar.html'
     success_url = reverse_lazy('pacientes:lista')
+    accion = 'borrar'
+    modelo = 'Paciente'
+
+    def delete(self, request, *args, **kwargs):
+        objeto = self.get_object()
+        response = super().delete(request, *args, **kwargs)
+        self.registrar_acceso(request, objeto)
+        return response
 
 
 class DescargarHistoriaPDFView(LoginRequiredMixin, AuditoriaMixin, View):

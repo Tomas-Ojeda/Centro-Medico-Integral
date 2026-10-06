@@ -306,7 +306,9 @@ class ImportarPlanillaView(LoginRequiredMixin, AuditoriaMixin, View):
 
 # ── Guardar pacientes confirmados ──────────────────────────────
 
-class GuardarPacientesImportadosView(LoginRequiredMixin, View):
+class GuardarPacientesImportadosView(LoginRequiredMixin, AuditoriaMixin, View):
+    accion = 'crear'
+    modelo = 'Paciente'
 
     def post(self, request):
         try:
@@ -357,6 +359,7 @@ class GuardarPacientesImportadosView(LoginRequiredMixin, View):
                 except Exception as e:
                     errores.append({'dni': dni, 'nombre': p.get('nombre', ''), 'error': str(e)})
 
+            self.registrar_acceso(request)
             return JsonResponse({'creados': len(creados), 'errores': errores})
 
         except Exception as e:

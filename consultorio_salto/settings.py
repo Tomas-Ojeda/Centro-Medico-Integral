@@ -111,6 +111,9 @@ AUTHENTICATION_BACKENDS = [
 AXES_FAILURE_LIMIT = 5  # Intentos fallidos antes de bloquear
 AXES_COOLOFF_TIME = 0.25  # 15 minutos de bloqueo
 AXES_LOCKOUT_PARAMETERS = ['ip_address', 'username']
+AXES_IPWARE_PROXY_COUNT = 1  # Render usa 1 proxy
+AXES_IPWARE_META_PRECEDENCE_ORDER = ('HTTP_X_FORWARDED_FOR', 'REMOTE_ADDR')
+AXES_RESET_ON_SUCCESS = True  # Resetear contador al loguearse bien
 
 # ─── Importación de planillas ──────────────────────────────────
 # La API key se lee de la variable de entorno ANTHROPIC_API_KEY

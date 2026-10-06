@@ -4,6 +4,7 @@ from django.urls import reverse_lazy
 from django.db.models import Q
 from .models import Profesional, Especialidad
 from .forms import ProfesionalForm
+from auditoria.mixins import AuditoriaMixin
 
 
 class ProfesionalListView(LoginRequiredMixin, ListView):
@@ -28,11 +29,13 @@ class ProfesionalListView(LoginRequiredMixin, ListView):
         return ctx
 
 
-class ProfesionalCreateView(LoginRequiredMixin, CreateView):
+class ProfesionalCreateView(LoginRequiredMixin, AuditoriaMixin, CreateView):
     model = Profesional
     form_class = ProfesionalForm
     template_name = 'profesionales/formulario.html'
     success_url = reverse_lazy('profesionales:lista')
+    accion = 'crear'
+    modelo = 'Profesional'
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
@@ -40,12 +43,19 @@ class ProfesionalCreateView(LoginRequiredMixin, CreateView):
         ctx['especialidades'] = Especialidad.values
         return ctx
 
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        self.registrar_acceso(self.request, form.instance)
+        return response
 
-class ProfesionalUpdateView(LoginRequiredMixin, UpdateView):
+
+class ProfesionalUpdateView(LoginRequiredMixin, AuditoriaMixin, UpdateView):
     model = Profesional
     form_class = ProfesionalForm
     template_name = 'profesionales/formulario.html'
     success_url = reverse_lazy('profesionales:lista')
+    accion = 'editar'
+    modelo = 'Profesional'
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
@@ -53,8 +63,21 @@ class ProfesionalUpdateView(LoginRequiredMixin, UpdateView):
         ctx['especialidades'] = Especialidad.values
         return ctx
 
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        self.registrar_acceso(self.request, form.instance)
+        return response
 
-class ProfesionalDeleteView(LoginRequiredMixin, DeleteView):
+
+class ProfesionalDeleteView(LoginRequiredMixin, AuditoriaMixin, DeleteView):
     model = Profesional
     template_name = 'profesionales/confirmar_eliminar.html'
     success_url = reverse_lazy('profesionales:lista')
+    accion = 'borrar'
+    modelo = 'Profesional'
+
+    def delete(self, request, *args, **kwargs):
+        objeto = self.get_object()
+        response = super().delete(request, *args, **kwargs)
+        self.registrar_acceso(request, objeto)
+        return response

@@ -300,10 +300,18 @@ class TurnoUpdateView(LoginRequiredMixin, AuditoriaMixin, UpdateView):
         return response
 
 
-class TurnoDeleteView(LoginRequiredMixin, DeleteView):
+class TurnoDeleteView(LoginRequiredMixin, AuditoriaMixin, DeleteView):
     model = Turno
     template_name = 'turnos/confirmar_eliminar.html'
     success_url = reverse_lazy('turnos:agenda')
+    accion = 'borrar'
+    modelo = 'Turno'
+
+    def delete(self, request, *args, **kwargs):
+        objeto = self.get_object()
+        response = super().delete(request, *args, **kwargs)
+        self.registrar_acceso(request, objeto)
+        return response
 
 
 class CambiarEstadoTurnoView(LoginRequiredMixin, View):

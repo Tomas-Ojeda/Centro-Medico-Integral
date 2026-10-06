@@ -62,12 +62,20 @@ class ConsultaUpdateView(LoginRequiredMixin, AuditoriaMixin, UpdateView):
         return reverse('pacientes:detalle', kwargs={'pk': self.object.paciente_id})
 
 
-class ConsultaDeleteView(LoginRequiredMixin, DeleteView):
+class ConsultaDeleteView(LoginRequiredMixin, AuditoriaMixin, DeleteView):
     model = Consulta
     template_name = 'historias/confirmar_eliminar.html'
+    accion = 'borrar'
+    modelo = 'Consulta'
 
     def get_success_url(self):
         return reverse('pacientes:detalle', kwargs={'pk': self.object.paciente_id})
+
+    def delete(self, request, *args, **kwargs):
+        objeto = self.get_object()
+        response = super().delete(request, *args, **kwargs)
+        self.registrar_acceso(request, objeto)
+        return response
 
 
 class DescargarArchivoAdjuntoView(LoginRequiredMixin, AuditoriaMixin, View):

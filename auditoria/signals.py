@@ -1,12 +1,13 @@
 from django.contrib.auth.signals import user_logged_in, user_logged_out, user_login_failed
 from django.dispatch import receiver
+from ipware import get_client_ip
 from .models import LogAcceso
 
 
 @receiver(user_logged_in)
 def registrar_login(sender, request, user, **kwargs):
     """Registra un login exitoso."""
-    ip = _obtener_ip(request)
+    ip, _ = get_client_ip(request, proxy_count=1)
     user_agent = request.META.get('HTTP_USER_AGENT', '')[:500]
 
     LogAcceso.objects.create(
@@ -20,7 +21,7 @@ def registrar_login(sender, request, user, **kwargs):
 @receiver(user_logged_out)
 def registrar_logout(sender, request, user, **kwargs):
     """Registra un logout."""
-    ip = _obtener_ip(request)
+    ip, _ = get_client_ip(request, proxy_count=1)
     user_agent = request.META.get('HTTP_USER_AGENT', '')[:500]
 
     LogAcceso.objects.create(
@@ -34,7 +35,7 @@ def registrar_logout(sender, request, user, **kwargs):
 @receiver(user_login_failed)
 def registrar_login_fallido(sender, credentials, request, **kwargs):
     """Registra un login fallido."""
-    ip = _obtener_ip(request) if request else None
+    ip, _ = get_client_ip(request, proxy_count=1) if request else (None, None)
     user_agent = request.META.get('HTTP_USER_AGENT', '')[:500] if request else ''
 
     # Intentar obtener el usuario si existe
@@ -51,11 +52,3 @@ def registrar_login_fallido(sender, credentials, request, **kwargs):
         ip=ip,
         user_agent=user_agent
     )
-
-
-def _obtener_ip(request):
-    """Obtiene la IP real del usuario."""
-    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
-    if x_forwarded_for:
-        return x_forwarded_for.split(',')[0].strip()
-    return request.META.get('REMOTE_ADDR')
