@@ -61,6 +61,8 @@ class ProfesionalForm(forms.ModelForm):
             instance.save()
             # Guardar especialidades
             especialidades_nombres = self.cleaned_data.get('especialidades', [])
+            if isinstance(especialidades_nombres, str):
+                especialidades_nombres = [e.strip() for e in especialidades_nombres.split(',') if e.strip()]
             instance.especialidades.clear()
             for nombre in especialidades_nombres:
                 esp, created = Especialidad.objects.get_or_create(nombre=nombre)
