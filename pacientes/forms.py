@@ -4,7 +4,22 @@ from .models import Paciente
 
 dni_validator = RegexValidator(r'^\d+$', 'El DNI solo puede contener números.')
 
+OBRAS_SOCIALES_COMUNES = [
+    'OSDE', 'OSEP', 'Swiss Medical', 'Medicus', 'Galeno', 'IOMA',
+    'Particular', 'OSDEPYM', 'OSPE', 'OSCHOCA', 'OSDEM', 'OSPACA',
+    'OSPITA', 'OSPESGA', 'OSPYP', 'OSDEPYM', 'OSDE', 'OSEP',
+    'Swiss Medical', 'Medicus', 'Galeno', 'IOMA', 'Particular',
+]
+
 class PacienteForm(forms.ModelForm):
+    obra_social = forms.CharField(
+        max_length=50,
+        widget=forms.TextInput(attrs={
+            'list': 'obras-sociales-list',
+            'placeholder': 'Seleccione o escriba una obra social',
+        })
+    )
+
     class Meta:
         model = Paciente
         fields = [

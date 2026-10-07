@@ -8,10 +8,7 @@ class ProfesionalForm(forms.ModelForm):
     especialidades = forms.ModelMultipleChoiceField(
         queryset=Especialidad.objects.all(),
         required=False,
-        widget=forms.SelectMultiple(attrs={
-            'class': 'form-select',
-            'size': '5',
-        })
+        widget=forms.CheckboxSelectMultiple()
     )
 
     class Meta:

@@ -60,7 +60,8 @@ class TurnoAgendaView(LoginRequiredMixin, ListView):
         ctx['fecha_str'] = self.fecha_seleccionada.strftime('%Y-%m-%d')
         ctx['fecha_anterior'] = (self.fecha_seleccionada - timedelta(days=1)).strftime('%Y-%m-%d')
         ctx['fecha_siguiente'] = (self.fecha_seleccionada + timedelta(days=1)).strftime('%Y-%m-%d')
-        ctx['especialidades'] = Profesional.objects.values_list('especialidad', flat=True).distinct()
+        from profesionales.models import Especialidad
+        ctx['especialidades'] = Especialidad.objects.values_list('nombre', flat=True).distinct()
         ctx['profesionales'] = Profesional.objects.filter(activo=True)
         ctx['filtro_especialidad'] = self.request.GET.get('especialidad', '')
         ctx['filtro_profesional'] = self.request.GET.get('profesional', '')
