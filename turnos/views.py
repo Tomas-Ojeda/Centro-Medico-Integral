@@ -206,14 +206,14 @@ class BuscarProfesionalesView(LoginRequiredMixin, View):
             profesionales = Profesional.objects.filter(
                 Q(nombre__icontains=q) |
                 Q(apellido__icontains=q) |
-                Q(especialidad__icontains=q)
+                Q(especialidades__nombre__icontains=q)
             ).filter(activo=True).order_by('apellido', 'nombre')[:20]
         
         data = [{
             'id': p.pk,
             'nombre': p.nombre,
             'apellido': p.apellido,
-            'especialidad': p.especialidad,
+            'especialidad': ', '.join([e.nombre for e in p.especialidades.all()]),
             'nombre_completo': f'{p.apellido}, {p.nombre}',
         } for p in profesionales]
         

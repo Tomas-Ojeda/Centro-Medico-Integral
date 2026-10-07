@@ -53,7 +53,13 @@
                 <div class="form-grid cols-3">
                     <div class="form-group">
                         <label>Especialidades</label>
-                        {{ form.especialidades }}
+                        <div style="border:1px solid var(--border);border-radius:8px;padding:10px;max-height:200px;overflow-y:auto;">
+                            {% for esp in form.especialidades %}
+                            <label style="display:flex;align-items:center;gap:8px;padding:4px 0;cursor:pointer;font-size:13px;">
+                                {{ esp.tag }} {{ esp.choice_label }}
+                            </label>
+                            {% endfor %}
+                        </div>
                         <small style="color:var(--text-secondary);font-size:11px;">Seleccioná una o más especialidades</small>
                     </div>
                     <div class="form-group">
