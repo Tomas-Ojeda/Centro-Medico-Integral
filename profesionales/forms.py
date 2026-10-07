@@ -4,11 +4,22 @@ from .models import Profesional, Especialidad
 
 dni_validator = RegexValidator(r'^\d+$', 'El DNI solo puede contener números.')
 
+ESPECIALIDADES_COMUNES = [
+    'Clínica Médica', 'Cardiología', 'Pediatría', 'Ginecología',
+    'Neurología', 'Traumatología', 'Kinesiología', 'Psicología',
+    'Odontología', 'Dermatología', 'Oftalmología', 'Psiquiatría',
+    'Mastología', 'Urología', 'Gastroenterología', 'Endocrinología',
+    'Neumonología', 'Reumatología', 'Infectología', 'Nutrición',
+]
+
 class ProfesionalForm(forms.ModelForm):
-    especialidades = forms.ModelMultipleChoiceField(
-        queryset=Especialidad.objects.all(),
+    especialidades = forms.CharField(
+        max_length=200,
         required=False,
-        widget=forms.CheckboxSelectMultiple()
+        widget=forms.TextInput(attrs={
+            'list': 'especialidades-list',
+            'placeholder': 'Seleccione o escriba una especialidad',
+        })
     )
 
     class Meta:
@@ -28,7 +39,7 @@ class ProfesionalForm(forms.ModelForm):
         self.fields['dni'].validators.append(dni_validator)
         # Cargar especialidades existentes del profesional
         if self.instance.pk:
-            self.fields['especialidades'].initial = self.instance.especialidades.all()
+            self.fields['especialidades'].initial = ', '.join([e.nombre for e in self.instance.especialidades.all()])
 
     def clean_dni(self):
         dni = self.cleaned_data.get('dni', '')
@@ -36,9 +47,22 @@ class ProfesionalForm(forms.ModelForm):
             raise forms.ValidationError('El DNI solo puede contener números.')
         return dni
 
+    def clean_especialidades(self):
+        especialidades_str = self.cleaned_data.get('especialidades', '')
+        if not especialidades_str:
+            return []
+        # Separar por coma y limpiar espacios
+        especialidades = [e.strip() for e in especialidades_str.split(',') if e.strip()]
+        return especialidades
+
     def save(self, commit=True):
         instance = super().save(commit=False)
         if commit:
             instance.save()
-            self.save_m2m()
+            # Guardar especialidades
+            especialidades_nombres = self.cleaned_data.get('especialidades', [])
+            instance.especialidades.clear()
+            for nombre in especialidades_nombres:
+                esp, created = Especialidad.objects.get_or_create(nombre=nombre)
+                instance.especialidades.add(esp)
         return instance
