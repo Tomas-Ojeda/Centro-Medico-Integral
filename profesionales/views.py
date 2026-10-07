@@ -18,7 +18,7 @@ class ProfesionalListView(LoginRequiredMixin, ListView):
         if q:
             qs = qs.filter(
                 Q(nombre__icontains=q) | Q(apellido__icontains=q) |
-                Q(especialidad__icontains=q)
+                Q(especialidades__nombre__icontains=q)
             )
         return qs
 
@@ -40,7 +40,6 @@ class ProfesionalCreateView(LoginRequiredMixin, AuditoriaMixin, CreateView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx['titulo'] = 'Nuevo Profesional'
-        ctx['especialidades'] = Especialidad.values
         return ctx
 
     def form_valid(self, form):
@@ -60,7 +59,6 @@ class ProfesionalUpdateView(LoginRequiredMixin, AuditoriaMixin, UpdateView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx['titulo'] = f'Editar: {self.object}'
-        ctx['especialidades'] = Especialidad.values
         return ctx
 
     def form_valid(self, form):

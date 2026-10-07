@@ -22,11 +22,7 @@ class Paciente(models.Model):
     telefono = models.CharField(max_length=25, blank=True)
     email = models.EmailField(blank=True)
     direccion = models.CharField(max_length=200, blank=True)
-    obra_social = models.CharField(
-        max_length=30,
-        choices=ObraSocial.choices,
-        default=ObraSocial.PARTICULAR
-    )
+    obra_social = models.CharField(max_length=50, blank=True, default='Particular')
     fecha_alta = models.DateField(auto_now_add=True)
     activo = models.BooleanField(default=True)
 

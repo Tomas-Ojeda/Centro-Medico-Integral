@@ -38,7 +38,9 @@
                 {% endif %}
                 <div>
                     <div style="font-size:15px;font-weight:700;">{{ prof.apellido }}, {{ prof.nombre }}</div>
-                    <span class="badge badge-confirmado" style="margin-top:4px;font-size:11px;">{{ prof.especialidad }}</span>
+                    {% for esp in prof.especialidades.all %}
+                    <span class="badge badge-confirmado" style="margin-top:4px;font-size:11px;margin-right:4px;">{{ esp.nombre }}</span>
+                    {% endfor %}
                 </div>
             </div>
             <div style="display:flex;gap:6px;">

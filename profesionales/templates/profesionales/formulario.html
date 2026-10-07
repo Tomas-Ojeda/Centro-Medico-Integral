@@ -52,13 +52,9 @@
                 </h3>
                 <div class="form-grid cols-3">
                     <div class="form-group">
-                        <label>Especialidad *</label>
-                        {{ form.especialidad }}
-                        <datalist id="especialidades-list">
-                            {% for esp in especialidades %}
-                            <option value="{{ esp }}">
-                            {% endfor %}
-                        </datalist>
+                        <label>Especialidades</label>
+                        {{ form.especialidades }}
+                        <small style="color:var(--text-secondary);font-size:11px;">Seleccioná una o más especialidades</small>
                     </div>
                     <div class="form-group">
                         <label>Mat. Nacional *</label>

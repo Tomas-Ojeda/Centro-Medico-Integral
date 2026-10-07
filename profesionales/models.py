@@ -1,28 +1,25 @@
 from django.db import models
 
 
-class Especialidad(models.TextChoices):
-    CLINICA = 'Clínica Médica', 'Clínica Médica'
-    CARDIOLOGIA = 'Cardiología', 'Cardiología'
-    PEDIATRIA = 'Pediatría', 'Pediatría'
-    GINECOLOGIA = 'Ginecología', 'Ginecología'
-    NEUROLOGIA = 'Neurología', 'Neurología'
-    TRAUMATOLOGIA = 'Traumatología', 'Traumatología'
-    KINESIOLOGIA = 'Kinesiología', 'Kinesiología'
-    PSICOLOGIA = 'Psicología', 'Psicología'
-    ODONTOLOGIA = 'Odontología', 'Odontología'
-    DERMATOLOGIA = 'Dermatología', 'Dermatología'
-    OFTALMOLOGIA = 'Oftalmología', 'Oftalmología'
-    OTRO = 'Otro', 'Otro'
+class Especialidad(models.Model):
+    nombre = models.CharField(max_length=50, unique=True)
+
+    class Meta:
+        ordering = ['nombre']
+        verbose_name = 'Especialidad'
+        verbose_name_plural = 'Especialidades'
+
+    def __str__(self):
+        return self.nombre
 
 
 class Profesional(models.Model):
     nombre = models.CharField(max_length=100)
     apellido = models.CharField(max_length=100)
     dni = models.CharField(max_length=10, unique=True)
-    matricula_nacional = models.CharField(max_length=20, unique=True)
+    matricula_nacional = models.CharField(max_length=20, blank=True, null=True)
     matricula_provincial = models.CharField(max_length=20, blank=True)
-    especialidad = models.CharField(max_length=50)
+    especialidades = models.ManyToManyField('Especialidad', blank=True, related_name='profesionales')
     telefono = models.CharField(max_length=25, blank=True)
     email = models.EmailField(unique=True, blank=True, null=True)
     foto = models.ImageField(upload_to='profesionales/', blank=True, null=True)
