@@ -180,7 +180,7 @@
                         resultsDiv.innerHTML = data.results.map(p => `
                             <div class="autocomplete-item" data-id="${p.id}" data-nombre="${p.nombre_completo}">
                                 <div class="item-title">${p.nombre_completo}</div>
-                                <div class="item-sub">${p.especialidad}</div>
+                                <div class="item-sub">DNI: ${p.dni} · ${p.especialidad || 'Sin especialidad'}</div>
                             </div>
                         `).join('');
                     }

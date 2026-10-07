@@ -213,6 +213,7 @@ class BuscarProfesionalesView(LoginRequiredMixin, View):
             'id': p.pk,
             'nombre': p.nombre,
             'apellido': p.apellido,
+            'dni': p.dni,
             'especialidad': ', '.join([e.nombre for e in p.especialidades.all()]),
             'nombre_completo': f'{p.apellido}, {p.nombre}',
         } for p in profesionales]
