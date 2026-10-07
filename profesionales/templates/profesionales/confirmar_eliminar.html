@@ -10,6 +10,9 @@
         <h2 style="font-size:18px;font-weight:700;margin-bottom:8px;">¿Confirmar eliminación?</h2>
         <p style="color:var(--text-secondary);font-size:14px;margin-bottom:24px;">
             Estás por eliminar al profesional <strong>{{ object }}</strong>.<br>
+            {% if object.especialidades.all %}
+            Especialidades: {% for esp in object.especialidades.all %}{{ esp.nombre }}{% if not forloop.last %}, {% endif %}{% endfor %}<br>
+            {% endif %}
             Si tiene consultas registradas, no se podrá eliminar (protección de integridad).
         </p>
         <form method="post" style="display:flex;gap:12px;justify-content:center;">
