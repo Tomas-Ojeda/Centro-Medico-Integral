@@ -81,7 +81,9 @@ class Consulta(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.especialidad and self.profesional_id:
-            self.especialidad = self.profesional.especialidad
+            nombres = [e.nombre for e in self.profesional.especialidades.all()]
+            if nombres:
+                self.especialidad = ', '.join(nombres)[:50]
         super().save(*args, **kwargs)
         # Mark this as most recent for the patient
         Consulta.objects.filter(paciente=self.paciente).exclude(pk=self.pk).update(es_mas_reciente=False)

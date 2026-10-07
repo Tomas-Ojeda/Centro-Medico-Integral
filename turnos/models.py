@@ -42,5 +42,5 @@ class Turno(models.Model):
         if not self.especialidad and self.profesional_id:
             especialidades = self.profesional.especialidades.all()
             if especialidades.exists():
-                self.especialidad = ', '.join([e.nombre for e in especialidades])
+                self.especialidad = ', '.join([e.nombre for e in especialidades])[:50]
         super().save(*args, **kwargs)
