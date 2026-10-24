@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}Dashboard — Centro Médico Integral{% endblock %}
+{% block title %}Dashboard — {{ NOMBRE_CENTRO }}{% endblock %}
 {% block nav_dashboard %}active{% endblock %}
 {% block page_title %}Dashboard{% endblock %}
 {% block page_subtitle %}Resumen del día · {{ hoy|date:"l d \d\e F, Y" }}{% endblock %}

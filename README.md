@@ -1,4 +1,4 @@
-# Centro Médico Integral 🏥
+# Consultorios Médicos - Salto de las Rosas 🏥
 
 [![Python](https://img.shields.io/badge/Python-3.13+-3776ab?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
 [![Django](https://img.shields.io/badge/Django-5.2+-092E20?style=flat-square&logo=django&logoColor=white)](https://www.djangoproject.com/)
