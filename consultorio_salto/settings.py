@@ -4,6 +4,9 @@ from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# ─── Identidad del centro ───────────────────────────────────────
+NOMBRE_CENTRO = 'Consultorios Médicos - Salto de las Rosas'
+
 # ─── Seguridad (leer de variables de entorno) ───────────────────
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY')
 if not SECRET_KEY:
@@ -66,6 +69,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'consultorio_salto.context_processors.nombre_centro',
             ],
         },
     },

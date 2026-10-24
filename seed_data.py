@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-Script de carga de datos iniciales para Centro Médico Integral.
+Script de carga de datos iniciales para Consultorios Médicos - Salto de las Rosas.
 Uso: python seed_data.py
 
 Crea:

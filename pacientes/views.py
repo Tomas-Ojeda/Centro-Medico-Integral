@@ -1,4 +1,5 @@
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView, DetailView
+from django.conf import settings
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.urls import reverse_lazy
 from django.db.models import Q
@@ -220,7 +221,7 @@ class DescargarHistoriaPDFView(LoginRequiredMixin, AuditoriaMixin, View):
         story = []
         
         # Título
-        story.append(Paragraph('Centro Medico Integral - Salto de las Rosas', styles['TitleCustom']))
+        story.append(Paragraph(settings.NOMBRE_CENTRO, styles['TitleCustom']))
         story.append(Paragraph('Historia Clínica del Paciente', styles['Subtitle']))
         
         # Línea decorativa

@@ -1,4 +1,4 @@
-# 🏥 Centro Médico — Instalación con Docker
+# 🏥 Consultorios Médicos - Salto de las Rosas — Instalación con Docker
 
 ## Requisitos previos
 - Docker Desktop instalado y corriendo

@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Centro Médico Integral{% endblock %}</title>
+    <title>{% block title %}{{ NOMBRE_CENTRO }}{% endblock %}</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
         /* ===== CSS RESET & BASE ===== */
@@ -711,7 +711,7 @@
         <div class="brand-top">
             <div class="brand-logo"><i class="fas fa-heartbeat"></i></div>
             <div>
-                <div class="brand-name">Centro Médico Integral</div>
+                <div class="brand-name">Consultorios Médicos</div>
                 <div class="brand-sub">Salto de las Rosas</div>
             </div>
         </div>
@@ -785,7 +785,7 @@
 
     <!-- FOOTER -->
     <footer class="footer">
-        <div class="footer-title">Centro Médico Integral - Salto de las Rosas</div>
+        <div class="footer-title">{{ NOMBRE_CENTRO }}</div>
         <div class="footer-links">
             <a href="https://www.instagram.com/consultoriosmedicos.salto/" target="_blank" rel="noopener noreferrer" class="footer-link">
                 <span class="footer-icon"><i class="fab fa-instagram"></i></span>
