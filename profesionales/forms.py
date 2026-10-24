@@ -51,20 +51,34 @@ class ProfesionalForm(forms.ModelForm):
         especialidades_str = self.cleaned_data.get('especialidades', '')
         if not especialidades_str:
             return []
-        # Separar por coma y limpiar espacios
-        especialidades = [e.strip() for e in especialidades_str.split(',') if e.strip()]
+        # Separar por coma, normalizar espacios y evitar duplicados por mayúsculas.
+        especialidades = []
+        vistos = set()
+        for parte in especialidades_str.split(','):
+            nombre = ' '.join(parte.split())
+            if not nombre:
+                continue
+            clave = nombre.casefold()
+            if clave not in vistos:
+                vistos.add(clave)
+                especialidades.append(nombre)
         return especialidades
 
     def save(self, commit=True):
         instance = super().save(commit=False)
         if commit:
             instance.save()
-            # Guardar especialidades
+            # Guardar especialidades reutilizando las existentes sin distinguir mayúsculas.
             especialidades_nombres = self.cleaned_data.get('especialidades', [])
             if isinstance(especialidades_nombres, str):
                 especialidades_nombres = [e.strip() for e in especialidades_nombres.split(',') if e.strip()]
             instance.especialidades.clear()
             for nombre in especialidades_nombres:
-                esp, created = Especialidad.objects.get_or_create(nombre=nombre)
+                nombre = ' '.join(nombre.split())
+                if not nombre:
+                    continue
+                esp = Especialidad.objects.filter(nombre__iexact=nombre).first()
+                if esp is None:
+                    esp = Especialidad.objects.create(nombre=nombre)
                 instance.especialidades.add(esp)
         return instance

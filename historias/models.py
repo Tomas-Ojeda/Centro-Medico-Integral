@@ -79,6 +79,13 @@ class Consulta(models.Model):
     def __str__(self):
         return f'Consulta de {self.paciente} — {self.fecha_hora.strftime("%d/%m/%Y")}'
 
+    @property
+    def especialidad_mostrar(self):
+        """Texto histórico o, si está vacío, las especialidades actuales del profesional."""
+        if self.especialidad:
+            return self.especialidad
+        return ', '.join(e.nombre for e in self.profesional.especialidades.all())
+
     def save(self, *args, **kwargs):
         if not self.especialidad and self.profesional_id:
             nombres = [e.nombre for e in self.profesional.especialidades.all()]

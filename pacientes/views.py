@@ -60,7 +60,11 @@ class PacienteDetailView(LoginRequiredMixin, AuditoriaMixin, DetailView):
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        ctx['historial'] = self.object.consultas.select_related('profesional').order_by('-fecha_hora')
+        ctx['historial'] = self.object.consultas.select_related(
+            'profesional'
+        ).prefetch_related(
+            'profesional__especialidades'
+        ).order_by('-fecha_hora')
         ctx['turnos'] = self.object.turnos.select_related('profesional').order_by('-fecha_hora')[:5]
         ctx['pacientes_sidebar'] = Paciente.objects.all()[:20]
         return ctx
@@ -133,7 +137,13 @@ class DescargarHistoriaPDFView(LoginRequiredMixin, AuditoriaMixin, View):
     def get(self, request, pk):
         paciente = get_object_or_404(Paciente, pk=pk)
         self.registrar_acceso(request, paciente)
-        consultas = Consulta.objects.filter(paciente=paciente).select_related('profesional').order_by('-fecha_hora')
+        consultas = Consulta.objects.filter(
+            paciente=paciente
+        ).select_related(
+            'profesional'
+        ).prefetch_related(
+            'profesional__especialidades'
+        ).order_by('-fecha_hora')
         
         # Crear el PDF
         buffer = io.BytesIO()
@@ -283,8 +293,9 @@ class DescargarHistoriaPDFView(LoginRequiredMixin, AuditoriaMixin, View):
                     styles['ConsultaTitle']
                 ))
                 
-                if consulta.especialidad:
-                    story.append(Paragraph(f'<b>Especialidad:</b> {consulta.especialidad}', styles['Value']))
+                especialidad = consulta.especialidad_mostrar
+                if especialidad:
+                    story.append(Paragraph(f'<b>Especialidad:</b> {especialidad}', styles['Value']))
                 
                 if consulta.motivo:
                     story.append(Paragraph(f'<b>Motivo:</b> {consulta.motivo}', styles['Value']))

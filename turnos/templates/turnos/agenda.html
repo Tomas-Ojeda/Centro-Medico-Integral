@@ -119,8 +119,9 @@
                             {{ dia.dia }}
                         </div>
                         {% for turno in dia.turnos %}
-                        <a href="{% url 'turnos:editar' turno.id %}" style="display:block;font-size:10px;padding:2px 4px;margin-top:2px;border-radius:4px;background:{% if turno.estado == 'pendiente' %}var(--cal-pendiente-bg){% elif turno.estado == 'confirmado' %}var(--cal-confirmado-bg){% elif turno.estado == 'realizado' %}var(--cal-realizado-bg){% else %}var(--cal-ausente-bg){% endif %};color:{% if turno.estado == 'pendiente' %}var(--cal-pendiente-text){% elif turno.estado == 'confirmado' %}var(--cal-confirmado-text){% elif turno.estado == 'realizado' %}var(--cal-realizado-text){% else %}var(--cal-ausente-text){% endif %};text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                        <a href="{% url 'turnos:editar' turno.id %}" title="{{ turno.hora }} · {{ turno.especialidad }} · {{ turno.paciente }}" style="display:block;font-size:10px;padding:2px 4px;margin-top:2px;border-radius:4px;background:{% if turno.estado == 'pendiente' %}var(--cal-pendiente-bg){% elif turno.estado == 'confirmado' %}var(--cal-confirmado-bg){% elif turno.estado == 'realizado' %}var(--cal-realizado-bg){% else %}var(--cal-ausente-bg){% endif %};color:{% if turno.estado == 'pendiente' %}var(--cal-pendiente-text){% elif turno.estado == 'confirmado' %}var(--cal-confirmado-text){% elif turno.estado == 'realizado' %}var(--cal-realizado-text){% else %}var(--cal-ausente-text){% endif %};text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
                             {{ turno.hora }} {{ turno.paciente|truncatechars:15 }}
+                            <span style="display:block;font-size:9px;opacity:.85;overflow:hidden;text-overflow:ellipsis;">{{ turno.especialidad }}</span>
                         </a>
                         {% endfor %}
                     </div>
@@ -150,7 +151,7 @@
                 DNI {{ turno.paciente.dni }}
             </div>
             <div style="display:flex;align-items:center;gap:12px;margin-top:5px;font-size:12px;color:var(--text-secondary);">
-                <span>🩺 {{ turno.especialidad }}</span>
+                <span>🩺 {{ turno.especialidad_actual }}</span>
                 <span>👤 {{ turno.profesional.apellido }}, {{ turno.profesional.nombre }}</span>
             </div>
             {% if turno.motivo %}

@@ -21,7 +21,9 @@ class TurnoAgendaView(LoginRequiredMixin, ListView):
     context_object_name = 'turnos'
 
     def get_queryset(self):
-        qs = Turno.objects.select_related('paciente', 'profesional')
+        qs = Turno.objects.select_related(
+            'paciente', 'profesional'
+        ).prefetch_related('profesional__especialidades')
         fecha_str = self.request.GET.get('fecha')
         especialidad = self.request.GET.get('especialidad', '')
         profesional_id = self.request.GET.get('profesional', '')
@@ -40,7 +42,9 @@ class TurnoAgendaView(LoginRequiredMixin, ListView):
         qs = qs.filter(fecha_hora__date=fecha)
 
         if especialidad:
-            qs = qs.filter(especialidad=especialidad)
+            qs = qs.filter(
+                profesional__especialidades__nombre__iexact=especialidad
+            ).distinct()
         if profesional_id:
             qs = qs.filter(profesional_id=profesional_id)
         if q:
@@ -114,7 +118,9 @@ class TurnoAgendaView(LoginRequiredMixin, ListView):
         turnos_mes = Turno.objects.filter(
             fecha_hora__year=anio,
             fecha_hora__month=mes
-        ).select_related('paciente', 'profesional')
+        ).select_related(
+            'paciente', 'profesional'
+        ).prefetch_related('profesional__especialidades')
         
         # Crear diccionario de turnos por día
         turnos_por_dia = {}
@@ -127,7 +133,7 @@ class TurnoAgendaView(LoginRequiredMixin, ListView):
                 'hora': turno.fecha_hora.strftime('%H:%M'),
                 'paciente': f'{turno.paciente.apellido}, {turno.paciente.nombre}',
                 'estado': turno.estado,
-                'especialidad': turno.especialidad,
+                'especialidad': turno.especialidad_actual,
             })
         
         # Construir las semanas del calendario
@@ -234,7 +240,13 @@ class ExportarAgendaCSVView(LoginRequiredMixin, AuditoriaMixin, View):
         except ValueError:
             fecha = date.today()
 
-        turnos = Turno.objects.filter(fecha_hora__date=fecha).select_related('paciente', 'profesional').order_by('fecha_hora')
+        turnos = Turno.objects.filter(
+            fecha_hora__date=fecha
+        ).select_related(
+            'paciente', 'profesional'
+        ).prefetch_related(
+            'profesional__especialidades'
+        ).order_by('fecha_hora')
 
         response = HttpResponse(content_type='text/csv; charset=utf-8')
         response['Content-Disposition'] = f'attachment; filename="agenda_{fecha.strftime("%Y%m%d")}.csv"'
@@ -247,7 +259,7 @@ class ExportarAgendaCSVView(LoginRequiredMixin, AuditoriaMixin, View):
                 t.fecha_hora.strftime('%H:%M'),
                 f'{t.paciente.apellido}, {t.paciente.nombre}',
                 t.paciente.dni,
-                t.especialidad,
+                t.especialidad_actual,
                 f'{t.profesional.apellido}, {t.profesional.nombre}',
                 t.get_estado_display(),
                 t.motivo,

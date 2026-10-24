@@ -108,7 +108,7 @@
                             {% if forloop.first %}
                             <span class="badge badge-confirmado" style="font-size:10px;">Más reciente</span>
                             {% endif %}
-                            <span class="badge badge-pendiente">{{ consulta.especialidad }}</span>
+                            <span class="badge badge-pendiente">{{ consulta.especialidad_mostrar }}</span>
                         </div>
                         <div class="timeline-meta">
                             🕐 {{ consulta.fecha_hora|date:"d \d\e F Y, H:i" }} &nbsp;·&nbsp;

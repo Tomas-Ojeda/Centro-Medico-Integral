@@ -38,6 +38,11 @@ class Turno(models.Model):
     def __str__(self):
         return f"{self.paciente} - {self.profesional} ({self.fecha_hora.strftime('%d/%m/%Y %H:%M')})"
 
+    @property
+    def especialidad_actual(self):
+        """Especialidades vigentes del profesional, sin usar el texto copiado."""
+        return ', '.join(e.nombre for e in self.profesional.especialidades.all())
+
     def save(self, *args, **kwargs):
         if not self.especialidad and self.profesional_id:
             especialidades = self.profesional.especialidades.all()
