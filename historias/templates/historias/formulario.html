@@ -21,11 +21,15 @@
         <form method="post" enctype="multipart/form-data" novalidate>
             {% csrf_token %}
             <div class="form-grid">
+                {% if es_recepcion %}
                 <div class="form-group">
                     <label>Profesional *</label>
                     {{ form.profesional }}
                     {% if form.profesional.errors %}<ul class="errorlist">{% for e in form.profesional.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
                 </div>
+                {% else %}
+                    {{ form.profesional }}
+                {% endif %}
                 <div class="form-group">
                     <label>Fecha y Hora *</label>
                     {{ form.fecha_hora }}

@@ -43,6 +43,39 @@ Sistema de gestión de pacientes, historias clínicas, profesionales y turnos pa
 | Auditoría | Registro de accesos (ver, crear, editar, borrar, descargar, exportar, importar, login) |
 | Path traversal | Validación de rutas resuletas dentro de MEDIA_ROOT |
 
+## Roles y permisos
+
+El sistema usa tres roles:
+
+| Rol | Cómo se asigna | Alcance |
+|-----|----------------|---------|
+| **Administrador** | Superusuario de Django | Acceso total, incluido `/admin` |
+| **Recepción** | Grupo `Recepcion` | Pacientes, turnos, profesionales e historias |
+| **Profesional** | Grupo `Profesional` + vínculo con un `Profesional` | Solo sus pacientes, sus turnos y sus consultas |
+
+La migración de roles agrega automáticamente al grupo `Recepcion` a todos los
+usuarios existentes que no sean superusuarios, para no quitarles acceso al
+desplegar. Un usuario sin ninguno de los dos grupos recibe una página de
+acceso denegado.
+
+### Crear un usuario profesional
+
+1. Ingresar a `/admin` con un superusuario.
+2. Ir a **Autenticación y autorización → Usuarios → Agregar usuario**.
+3. Crear el usuario con su nombre de usuario y contraseña.
+4. En la ficha del usuario, asignarle el grupo **`Profesional`**.
+5. Ir a **Profesionales**, abrir la ficha del profesional correspondiente y
+   seleccionar ese usuario en el campo **Usuario de acceso**. Guardar.
+6. Si el usuario profesional no está vinculado a un profesional, al iniciar
+   sesión verá el mensaje: *"Tu usuario no está vinculado a un profesional,
+   contactá a recepción."*
+
+Para un usuario de recepción, alcanza con asignarle el grupo **`Recepcion`**;
+no hace falta vincularlo a un profesional.
+
+> La vinculación `Profesional ↔ Usuario` se administra únicamente desde el
+> admin de Django. No se expone en los formularios de recepción.
+
 ## Requisitos legales
 
 - Ley 25326 (Protección de Datos Personales)

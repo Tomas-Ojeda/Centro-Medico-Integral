@@ -13,9 +13,10 @@
         <div class="stat-icon blue">👤</div>
         <div>
             <div class="stat-value">{{ total_pacientes }}</div>
-            <div class="stat-label">Pacientes registrados</div>
+            <div class="stat-label">{% if es_profesional %}Pacientes que atendés{% else %}Pacientes registrados{% endif %}</div>
         </div>
     </div>
+    {% if es_recepcion %}
     <div class="stat-card">
         <div class="stat-icon green">🩺</div>
         <div>
@@ -23,6 +24,7 @@
             <div class="stat-label">Profesionales activos</div>
         </div>
     </div>
+    {% endif %}
     <div class="stat-card">
         <div class="stat-icon amber">📅</div>
         <div>
@@ -103,10 +105,13 @@
         <div class="card" style="margin-bottom:16px;">
             <div class="card-title" style="margin-bottom:14px;">⚡ Accesos rápidos</div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                {% if es_recepcion %}
                 <a href="{% url 'pacientes:crear' %}" class="btn btn-primary" style="justify-content:center;">+ Nuevo Paciente</a>
                 <a href="{% url 'turnos:crear' %}" class="btn btn-accent" style="justify-content:center;">+ Nuevo Turno</a>
                 <a href="{% url 'profesionales:crear' %}" class="btn btn-outline" style="justify-content:center;">+ Profesional</a>
+                {% endif %}
                 <a href="{% url 'turnos:agenda' %}" class="btn btn-outline" style="justify-content:center;">📅 Ver Agenda</a>
+                <a href="{% url 'pacientes:lista' %}" class="btn btn-outline" style="justify-content:center;">👥 Ver Pacientes</a>
             </div>
         </div>
 

@@ -18,10 +18,17 @@ class ConsultaForm(forms.ModelForm):
             'tratamiento': forms.Textarea(attrs={'rows': 3}),
         }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, profesional_fijo=None, **kwargs):
+        self.profesional_fijo = profesional_fijo
         super().__init__(*args, **kwargs)
         self.fields['fecha_hora'].input_formats = ['%Y-%m-%dT%H:%M']
-        
+
+        # Para profesionales, el profesional se fuerza al usuario vinculado.
+        if profesional_fijo is not None:
+            self.fields['profesional'].initial = profesional_fijo
+            self.fields['profesional'].disabled = True
+            self.fields['profesional'].widget = forms.HiddenInput()
+
         # Cargar campos adicionales existentes
         self.campos_adicionales = CampoAdicional.objects.filter(activo=True)
         

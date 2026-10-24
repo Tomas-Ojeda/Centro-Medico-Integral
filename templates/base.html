@@ -722,10 +722,11 @@
         <div class="user-avatar">{{ user.username|slice:":1"|upper }}</div>
         <div class="user-info">
             <div class="user-name">{{ user.username }}</div>
-            <div class="user-role">{% if user.is_superuser %}Administrador{% else %}Usuario{% endif %}</div>
+            <div class="user-role">{{ rol_usuario|default:"Sin rol" }}</div>
         </div>
     </div>
 
+    {% if es_recepcion or es_profesional %}
     <nav class="sidebar-nav">
         <a href="{% url 'dashboard:index' %}" class="nav-item {% block nav_dashboard %}{% endblock %}">
             <span class="nav-icon"><i class="fas fa-th-large"></i></span> Dashboard
@@ -736,10 +737,13 @@
         <a href="{% url 'turnos:agenda' %}" class="nav-item {% block nav_turnos %}{% endblock %}">
             <span class="nav-icon"><i class="fas fa-calendar-alt"></i></span> Agenda
         </a>
+        {% if es_recepcion %}
         <a href="{% url 'profesionales:lista' %}" class="nav-item {% block nav_profesionales %}{% endblock %}">
             <span class="nav-icon"><i class="fas fa-user-md"></i></span> Profesionales
         </a>
+        {% endif %}
     </nav>
+    {% endif %}
 
     <div class="sidebar-footer">
         <form method="post" action="{% url 'logout' %}" style="margin:0;">

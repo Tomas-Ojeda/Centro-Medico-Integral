@@ -2,6 +2,8 @@ from django.contrib import admin
 from django.urls import path, include
 from django.shortcuts import redirect
 
+handler403 = 'consultorio_salto.views.error_403'
+
 urlpatterns = [
     path('', lambda req: redirect('dashboard:index'), name='home'),
     path('admin/', admin.site.urls),

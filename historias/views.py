@@ -12,9 +12,13 @@ from pacientes.models import Paciente
 from .models import Consulta
 from .forms import ConsultaForm
 from auditoria.mixins import AuditoriaMixin
+from consultorio_salto.permisos import (
+    RecepcionOProfesionalMixin,
+    SoloRecepcionMixin,
+)
 
 
-class ConsultaCreateView(LoginRequiredMixin, AuditoriaMixin, CreateView):
+class ConsultaCreateView(RecepcionOProfesionalMixin, LoginRequiredMixin, AuditoriaMixin, CreateView):
     model = Consulta
     form_class = ConsultaForm
     template_name = 'historias/formulario.html'
@@ -22,7 +26,17 @@ class ConsultaCreateView(LoginRequiredMixin, AuditoriaMixin, CreateView):
     modelo = 'Consulta'
 
     def get_paciente(self):
+        if self.profesional:
+            return get_object_or_404(
+                Paciente.objects.atendidos_por(self.profesional),
+                pk=self.kwargs['paciente_pk'],
+            )
         return get_object_or_404(Paciente, pk=self.kwargs['paciente_pk'])
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['profesional_fijo'] = self.profesional
+        return kwargs
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
@@ -32,6 +46,8 @@ class ConsultaCreateView(LoginRequiredMixin, AuditoriaMixin, CreateView):
 
     def form_valid(self, form):
         form.instance.paciente = self.get_paciente()
+        if self.profesional:
+            form.instance.profesional = self.profesional
         response = super().form_valid(form)
         self.registrar_acceso(self.request, form.instance)
         return response
@@ -40,12 +56,23 @@ class ConsultaCreateView(LoginRequiredMixin, AuditoriaMixin, CreateView):
         return reverse('pacientes:detalle', kwargs={'pk': self.kwargs['paciente_pk']})
 
 
-class ConsultaUpdateView(LoginRequiredMixin, AuditoriaMixin, UpdateView):
+class ConsultaUpdateView(RecepcionOProfesionalMixin, LoginRequiredMixin, AuditoriaMixin, UpdateView):
     model = Consulta
     form_class = ConsultaForm
     template_name = 'historias/formulario.html'
     accion = 'editar'
     modelo = 'Consulta'
+
+    def get_queryset(self):
+        qs = Consulta.objects.all()
+        if self.profesional:
+            qs = qs.filter(profesional=self.profesional)
+        return qs
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['profesional_fijo'] = self.profesional
+        return kwargs
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
@@ -54,6 +81,8 @@ class ConsultaUpdateView(LoginRequiredMixin, AuditoriaMixin, UpdateView):
         return ctx
 
     def form_valid(self, form):
+        if self.profesional:
+            form.instance.profesional = self.profesional
         response = super().form_valid(form)
         self.registrar_acceso(self.request, form.instance)
         return response
@@ -62,7 +91,7 @@ class ConsultaUpdateView(LoginRequiredMixin, AuditoriaMixin, UpdateView):
         return reverse('pacientes:detalle', kwargs={'pk': self.object.paciente_id})
 
 
-class ConsultaDeleteView(LoginRequiredMixin, AuditoriaMixin, DeleteView):
+class ConsultaDeleteView(SoloRecepcionMixin, LoginRequiredMixin, AuditoriaMixin, DeleteView):
     model = Consulta
     template_name = 'historias/confirmar_eliminar.html'
     accion = 'borrar'
@@ -78,13 +107,22 @@ class ConsultaDeleteView(LoginRequiredMixin, AuditoriaMixin, DeleteView):
         return response
 
 
-class DescargarArchivoAdjuntoView(LoginRequiredMixin, AuditoriaMixin, View):
+class DescargarArchivoAdjuntoView(RecepcionOProfesionalMixin, LoginRequiredMixin, AuditoriaMixin, View):
     """Vista para servir archivos adjuntos de consultas de forma segura."""
     accion = 'descargar'
     modelo = 'Consulta'
 
     def get(self, request, consulta_pk):
-        consulta = get_object_or_404(Consulta, pk=consulta_pk)
+        consulta = get_object_or_404(
+            Consulta.objects.select_related('paciente'),
+            pk=consulta_pk,
+        )
+        if self.profesional:
+            paciente_habilitado = Paciente.objects.atendidos_por(
+                self.profesional
+            ).filter(pk=consulta.paciente_id).exists()
+            if not paciente_habilitado:
+                raise Http404('No tenés acceso a esta consulta')
         self.registrar_acceso(request, consulta)
 
         if not consulta.archivo_adjunto:

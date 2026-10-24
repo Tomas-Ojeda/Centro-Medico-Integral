@@ -1,5 +1,21 @@
 from django.db import models
+from django.db.models import Q
 from django.utils import timezone
+
+
+class PacienteQuerySet(models.QuerySet):
+    def atendidos_por(self, profesional):
+        """Pacientes con al menos un turno o una consulta de ese profesional."""
+        if profesional is None:
+            return self.none()
+        return self.filter(
+            Q(turnos__profesional=profesional)
+            | Q(consultas__profesional=profesional)
+        ).distinct()
+
+
+class PacienteManager(models.Manager.from_queryset(PacienteQuerySet)):
+    pass
 
 
 class ObraSocial(models.TextChoices):
@@ -14,6 +30,8 @@ class ObraSocial(models.TextChoices):
 
 
 class Paciente(models.Model):
+    objects = PacienteManager()
+
     numero_socio = models.CharField(max_length=20, unique=True, blank=True, null=True)
     dni = models.CharField(max_length=10, unique=True)
     nombre = models.CharField(max_length=100)

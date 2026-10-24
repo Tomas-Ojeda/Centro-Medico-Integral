@@ -11,8 +11,12 @@
         <a href="?vista=lista" class="btn btn-sm" style="border-radius:0;{% if vista != 'calendario' %}background:var(--sidebar-bg);color:#fff;{% endif %}">📋 Lista</a>
         <a href="?vista=calendario" class="btn btn-sm" style="border-radius:0;{% if vista == 'calendario' %}background:var(--sidebar-bg);color:#fff;{% endif %}">📅 Calendario</a>
     </div>
+    {% if es_recepcion %}
     <a href="{% url 'turnos:exportar_csv' %}?fecha={{ fecha_str }}" class="btn btn-outline" title="Exportar agenda del día a CSV">⬇ Exportar CSV</a>
     <a href="{% url 'turnos:crear' %}" class="btn btn-primary">+ Nuevo Turno</a>
+    {% else %}
+    <span class="badge badge-pendiente">Solo lectura</span>
+    {% endif %}
 </div>
 {% endblock %}
 
@@ -119,10 +123,10 @@
                             {{ dia.dia }}
                         </div>
                         {% for turno in dia.turnos %}
-                        <a href="{% url 'turnos:editar' turno.id %}" title="{{ turno.hora }} · {{ turno.especialidad }} · {{ turno.paciente }}" style="display:block;font-size:10px;padding:2px 4px;margin-top:2px;border-radius:4px;background:{% if turno.estado == 'pendiente' %}var(--cal-pendiente-bg){% elif turno.estado == 'confirmado' %}var(--cal-confirmado-bg){% elif turno.estado == 'realizado' %}var(--cal-realizado-bg){% else %}var(--cal-ausente-bg){% endif %};color:{% if turno.estado == 'pendiente' %}var(--cal-pendiente-text){% elif turno.estado == 'confirmado' %}var(--cal-confirmado-text){% elif turno.estado == 'realizado' %}var(--cal-realizado-text){% else %}var(--cal-ausente-text){% endif %};text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                        {% if es_recepcion %}<a href="{% url 'turnos:editar' turno.id %}"{% else %}<span{% endif %} title="{{ turno.hora }} · {{ turno.especialidad }} · {{ turno.paciente }}" style="display:block;font-size:10px;padding:2px 4px;margin-top:2px;border-radius:4px;background:{% if turno.estado == 'pendiente' %}var(--cal-pendiente-bg){% elif turno.estado == 'confirmado' %}var(--cal-confirmado-bg){% elif turno.estado == 'realizado' %}var(--cal-realizado-bg){% else %}var(--cal-ausente-bg){% endif %};color:{% if turno.estado == 'pendiente' %}var(--cal-pendiente-text){% elif turno.estado == 'confirmado' %}var(--cal-confirmado-text){% elif turno.estado == 'realizado' %}var(--cal-realizado-text){% else %}var(--cal-ausente-text){% endif %};text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
                             {{ turno.hora }} {{ turno.paciente|truncatechars:15 }}
                             <span style="display:block;font-size:9px;opacity:.85;overflow:hidden;text-overflow:ellipsis;">{{ turno.especialidad }}</span>
-                        </a>
+                        {% if es_recepcion %}</a>{% else %}</span>{% endif %}
                         {% endfor %}
                     </div>
                     {% endif %}
@@ -166,6 +170,7 @@
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
             <span class="badge badge-{{ turno.estado }}">{{ turno.get_estado_display }}</span>
 
+            {% if es_recepcion %}
             {% if turno.estado == 'pendiente' %}
             <form method="post" action="{% url 'turnos:cambiar_estado' turno.pk 'confirmado' %}" style="display:inline;">
                 {% csrf_token %}
@@ -192,6 +197,7 @@
 
             <a href="{% url 'turnos:editar' turno.pk %}" class="btn btn-outline btn-sm">✏️</a>
             <a href="{% url 'turnos:eliminar' turno.pk %}" class="btn btn-danger btn-sm">🗑</a>
+            {% endif %}
         </div>
     </div>
     {% endfor %}
@@ -203,7 +209,9 @@
         <div class="icon">📭</div>
         <h3>Sin turnos para este día</h3>
         <p>No hay turnos agendados con los filtros seleccionados.</p>
+        {% if es_recepcion %}
         <a href="{% url 'turnos:crear' %}" class="btn btn-primary" style="margin-top:16px;">+ Agendar turno</a>
+        {% endif %}
     </div>
 </div>
 {% endif %}

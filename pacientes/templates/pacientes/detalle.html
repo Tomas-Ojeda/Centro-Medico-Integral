@@ -6,7 +6,9 @@
 {% block page_subtitle %}Perfil e historial clínico{% endblock %}
 
 {% block header_action %}
+{% if es_recepcion %}
 <a href="{% url 'pacientes:crear' %}" class="btn btn-primary">👤+ Nuevo Paciente</a>
+{% endif %}
 {% endblock %}
 
 {% block content %}
@@ -20,7 +22,7 @@
                 <input type="text" name="q" placeholder="Buscar por DNI, apellido o Nº Socio.">
             </div>
         </form>
-        <div style="font-size:12px;color:var(--text-secondary);margin-bottom:10px;">Pacientes recientes</div>
+        <div style="font-size:12px;color:var(--text-secondary);margin-bottom:10px;">{% if es_profesional %}Mis pacientes{% else %}Pacientes recientes{% endif %}</div>
         <div style="max-height:calc(100vh - 260px);overflow-y:auto;">
             {% for p in pacientes_sidebar %}
             <a href="{% url 'pacientes:detalle' p.pk %}"
@@ -55,8 +57,10 @@
                 </div>
                 <div style="display:flex;gap:8px;">
                     <a href="{% url 'pacientes:descargar_pdf' paciente.pk %}" class="btn btn-accent btn-sm">📄 Descargar PDF</a>
+                    {% if es_recepcion %}
                     <a href="{% url 'pacientes:editar' paciente.pk %}" class="btn btn-outline btn-sm">✏️ Editar</a>
                     <a href="{% url 'pacientes:eliminar' paciente.pk %}" class="btn btn-danger btn-sm">🗑</a>
+                    {% endif %}
                 </div>
             </div>
 
@@ -150,8 +154,12 @@
                         </div>
                         {% endif %}
                         <div style="display:flex;gap:8px;margin-top:10px;">
+                            {% if es_recepcion or consulta.profesional_id == profesional_actual.pk %}
                             <a href="{% url 'historias:editar_consulta' consulta.pk %}" class="btn btn-outline btn-sm">✏️ Editar</a>
+                            {% endif %}
+                            {% if es_recepcion %}
                             <a href="{% url 'historias:eliminar_consulta' consulta.pk %}" class="btn btn-danger btn-sm">🗑</a>
+                            {% endif %}
                         </div>
                     </div>
                 </div>

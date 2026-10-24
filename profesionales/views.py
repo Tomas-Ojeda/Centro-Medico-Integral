@@ -5,9 +5,10 @@ from django.db.models import Q
 from .models import Profesional, Especialidad
 from .forms import ProfesionalForm
 from auditoria.mixins import AuditoriaMixin
+from consultorio_salto.permisos import SoloRecepcionMixin
 
 
-class ProfesionalListView(LoginRequiredMixin, ListView):
+class ProfesionalListView(SoloRecepcionMixin, LoginRequiredMixin, ListView):
     model = Profesional
     template_name = 'profesionales/lista.html'
     context_object_name = 'profesionales'
@@ -29,7 +30,7 @@ class ProfesionalListView(LoginRequiredMixin, ListView):
         return ctx
 
 
-class ProfesionalCreateView(LoginRequiredMixin, AuditoriaMixin, CreateView):
+class ProfesionalCreateView(SoloRecepcionMixin, LoginRequiredMixin, AuditoriaMixin, CreateView):
     model = Profesional
     form_class = ProfesionalForm
     template_name = 'profesionales/formulario.html'
@@ -48,7 +49,7 @@ class ProfesionalCreateView(LoginRequiredMixin, AuditoriaMixin, CreateView):
         return response
 
 
-class ProfesionalUpdateView(LoginRequiredMixin, AuditoriaMixin, UpdateView):
+class ProfesionalUpdateView(SoloRecepcionMixin, LoginRequiredMixin, AuditoriaMixin, UpdateView):
     model = Profesional
     form_class = ProfesionalForm
     template_name = 'profesionales/formulario.html'
@@ -67,7 +68,7 @@ class ProfesionalUpdateView(LoginRequiredMixin, AuditoriaMixin, UpdateView):
         return response
 
 
-class ProfesionalDeleteView(LoginRequiredMixin, AuditoriaMixin, DeleteView):
+class ProfesionalDeleteView(SoloRecepcionMixin, LoginRequiredMixin, AuditoriaMixin, DeleteView):
     model = Profesional
     template_name = 'profesionales/confirmar_eliminar.html'
     success_url = reverse_lazy('profesionales:lista')

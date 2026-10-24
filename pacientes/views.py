@@ -17,17 +17,24 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
 from auditoria.mixins import AuditoriaMixin
+from consultorio_salto.permisos import (
+    RecepcionOProfesionalMixin,
+    SoloRecepcionMixin,
+)
 import io
 
 
-class PacienteListView(LoginRequiredMixin, ListView):
+class PacienteListView(RecepcionOProfesionalMixin, LoginRequiredMixin, ListView):
     model = Paciente
     template_name = 'pacientes/lista.html'
     context_object_name = 'pacientes'
     paginate_by = 20
 
     def get_queryset(self):
-        qs = Paciente.objects.all()
+        if self.profesional:
+            qs = Paciente.objects.atendidos_por(self.profesional)
+        else:
+            qs = Paciente.objects.all()
         q = self.request.GET.get('q', '').strip()
         orden = self.request.GET.get('orden', 'apellido')
         if q:
@@ -47,16 +54,24 @@ class PacienteListView(LoginRequiredMixin, ListView):
         ctx = super().get_context_data(**kwargs)
         ctx['q'] = self.request.GET.get('q', '')
         ctx['orden'] = self.request.GET.get('orden', 'apellido')
-        ctx['total'] = Paciente.objects.count()
+        if self.profesional:
+            ctx['total'] = Paciente.objects.atendidos_por(self.profesional).count()
+        else:
+            ctx['total'] = Paciente.objects.count()
         return ctx
 
 
-class PacienteDetailView(LoginRequiredMixin, AuditoriaMixin, DetailView):
+class PacienteDetailView(RecepcionOProfesionalMixin, LoginRequiredMixin, AuditoriaMixin, DetailView):
     model = Paciente
     template_name = 'pacientes/detalle.html'
     context_object_name = 'paciente'
     accion = 'ver'
     modelo = 'Paciente'
+
+    def get_queryset(self):
+        if self.profesional:
+            return Paciente.objects.atendidos_por(self.profesional)
+        return Paciente.objects.all()
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
@@ -66,7 +81,7 @@ class PacienteDetailView(LoginRequiredMixin, AuditoriaMixin, DetailView):
             'profesional__especialidades'
         ).order_by('-fecha_hora')
         ctx['turnos'] = self.object.turnos.select_related('profesional').order_by('-fecha_hora')[:5]
-        ctx['pacientes_sidebar'] = Paciente.objects.all()[:20]
+        ctx['pacientes_sidebar'] = self.get_queryset()[:20]
         return ctx
 
     def get(self, request, *args, **kwargs):
@@ -75,7 +90,7 @@ class PacienteDetailView(LoginRequiredMixin, AuditoriaMixin, DetailView):
         return response
 
 
-class PacienteCreateView(LoginRequiredMixin, AuditoriaMixin, CreateView):
+class PacienteCreateView(SoloRecepcionMixin, LoginRequiredMixin, AuditoriaMixin, CreateView):
     model = Paciente
     form_class = PacienteForm
     template_name = 'pacientes/formulario.html'
@@ -95,7 +110,7 @@ class PacienteCreateView(LoginRequiredMixin, AuditoriaMixin, CreateView):
         return response
 
 
-class PacienteUpdateView(LoginRequiredMixin, AuditoriaMixin, UpdateView):
+class PacienteUpdateView(SoloRecepcionMixin, LoginRequiredMixin, AuditoriaMixin, UpdateView):
     model = Paciente
     form_class = PacienteForm
     template_name = 'pacientes/formulario.html'
@@ -115,7 +130,7 @@ class PacienteUpdateView(LoginRequiredMixin, AuditoriaMixin, UpdateView):
         return response
 
 
-class PacienteDeleteView(LoginRequiredMixin, AuditoriaMixin, DeleteView):
+class PacienteDeleteView(SoloRecepcionMixin, LoginRequiredMixin, AuditoriaMixin, DeleteView):
     model = Paciente
     template_name = 'pacientes/confirmar_eliminar.html'
     success_url = reverse_lazy('pacientes:lista')
@@ -129,13 +144,19 @@ class PacienteDeleteView(LoginRequiredMixin, AuditoriaMixin, DeleteView):
         return response
 
 
-class DescargarHistoriaPDFView(LoginRequiredMixin, AuditoriaMixin, View):
+class DescargarHistoriaPDFView(RecepcionOProfesionalMixin, LoginRequiredMixin, AuditoriaMixin, View):
     """Descarga la historia clínica completa del paciente como PDF."""
     accion = 'descargar'
     modelo = 'Paciente'
 
     def get(self, request, pk):
-        paciente = get_object_or_404(Paciente, pk=pk)
+        if self.profesional:
+            paciente = get_object_or_404(
+                Paciente.objects.atendidos_por(self.profesional),
+                pk=pk,
+            )
+        else:
+            paciente = get_object_or_404(Paciente, pk=pk)
         self.registrar_acceso(request, paciente)
         consultas = Consulta.objects.filter(
             paciente=paciente

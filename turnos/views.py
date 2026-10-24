@@ -13,9 +13,13 @@ from .forms import TurnoForm
 from profesionales.models import Profesional
 from pacientes.models import Paciente
 from auditoria.mixins import AuditoriaMixin
+from consultorio_salto.permisos import (
+    RecepcionOProfesionalMixin,
+    SoloRecepcionMixin,
+)
 
 
-class TurnoAgendaView(LoginRequiredMixin, ListView):
+class TurnoAgendaView(RecepcionOProfesionalMixin, LoginRequiredMixin, ListView):
     model = Turno
     template_name = 'turnos/agenda.html'
     context_object_name = 'turnos'
@@ -24,6 +28,8 @@ class TurnoAgendaView(LoginRequiredMixin, ListView):
         qs = Turno.objects.select_related(
             'paciente', 'profesional'
         ).prefetch_related('profesional__especialidades')
+        if self.profesional:
+            qs = qs.filter(profesional=self.profesional)
         fecha_str = self.request.GET.get('fecha')
         especialidad = self.request.GET.get('especialidad', '')
         profesional_id = self.request.GET.get('profesional', '')
@@ -65,14 +71,22 @@ class TurnoAgendaView(LoginRequiredMixin, ListView):
         ctx['fecha_anterior'] = (self.fecha_seleccionada - timedelta(days=1)).strftime('%Y-%m-%d')
         ctx['fecha_siguiente'] = (self.fecha_seleccionada + timedelta(days=1)).strftime('%Y-%m-%d')
         from profesionales.models import Especialidad
-        ctx['especialidades'] = Especialidad.objects.values_list('nombre', flat=True).distinct()
-        ctx['profesionales'] = Profesional.objects.filter(activo=True)
+        if self.profesional:
+            ctx['especialidades'] = self.profesional.especialidades.values_list(
+                'nombre', flat=True
+            )
+            ctx['profesionales'] = [self.profesional]
+        else:
+            ctx['especialidades'] = Especialidad.objects.values_list('nombre', flat=True).distinct()
+            ctx['profesionales'] = Profesional.objects.filter(activo=True)
         ctx['filtro_especialidad'] = self.request.GET.get('especialidad', '')
         ctx['filtro_profesional'] = self.request.GET.get('profesional', '')
         ctx['q'] = self.request.GET.get('q', '')
         ctx['total_dia'] = self.get_queryset().count()
-        # Stats rápidas del día
+        # Stats rápidas del día (para profesionales, solo sus turnos)
         todos_dia = Turno.objects.filter(fecha_hora__date=self.fecha_seleccionada)
+        if self.profesional:
+            todos_dia = todos_dia.filter(profesional=self.profesional)
         ctx['stats_dia'] = {
             'pendientes': todos_dia.filter(estado='pendiente').count(),
             'confirmados': todos_dia.filter(estado='confirmado').count(),
@@ -118,7 +132,10 @@ class TurnoAgendaView(LoginRequiredMixin, ListView):
         turnos_mes = Turno.objects.filter(
             fecha_hora__year=anio,
             fecha_hora__month=mes
-        ).select_related(
+        )
+        if self.profesional:
+            turnos_mes = turnos_mes.filter(profesional=self.profesional)
+        turnos_mes = turnos_mes.select_related(
             'paciente', 'profesional'
         ).prefetch_related('profesional__especialidades')
         
@@ -175,7 +192,7 @@ class TurnoAgendaView(LoginRequiredMixin, ListView):
         return ctx
 
 
-class BuscarPacientesView(LoginRequiredMixin, View):
+class BuscarPacientesView(SoloRecepcionMixin, LoginRequiredMixin, View):
     """Endpoint JSON para búsqueda de pacientes con autocompletado."""
     def get(self, request):
         q = request.GET.get('q', '').strip()
@@ -201,7 +218,7 @@ class BuscarPacientesView(LoginRequiredMixin, View):
         return JsonResponse({'results': data})
 
 
-class BuscarProfesionalesView(LoginRequiredMixin, View):
+class BuscarProfesionalesView(SoloRecepcionMixin, LoginRequiredMixin, View):
     """Endpoint JSON para búsqueda de profesionales con autocompletado."""
     def get(self, request):
         q = request.GET.get('q', '').strip()
@@ -227,7 +244,7 @@ class BuscarProfesionalesView(LoginRequiredMixin, View):
         return JsonResponse({'results': data})
 
 
-class ExportarAgendaCSVView(LoginRequiredMixin, AuditoriaMixin, View):
+class ExportarAgendaCSVView(SoloRecepcionMixin, LoginRequiredMixin, AuditoriaMixin, View):
     accion = 'exportar'
     modelo = 'Turno'
 
@@ -269,7 +286,7 @@ class ExportarAgendaCSVView(LoginRequiredMixin, AuditoriaMixin, View):
         return response
 
 
-class TurnoCreateView(LoginRequiredMixin, AuditoriaMixin, CreateView):
+class TurnoCreateView(SoloRecepcionMixin, LoginRequiredMixin, AuditoriaMixin, CreateView):
     model = Turno
     form_class = TurnoForm
     template_name = 'turnos/formulario.html'
@@ -295,7 +312,7 @@ class TurnoCreateView(LoginRequiredMixin, AuditoriaMixin, CreateView):
         return response
 
 
-class TurnoUpdateView(LoginRequiredMixin, AuditoriaMixin, UpdateView):
+class TurnoUpdateView(SoloRecepcionMixin, LoginRequiredMixin, AuditoriaMixin, UpdateView):
     model = Turno
     form_class = TurnoForm
     template_name = 'turnos/formulario.html'
@@ -314,7 +331,7 @@ class TurnoUpdateView(LoginRequiredMixin, AuditoriaMixin, UpdateView):
         return response
 
 
-class TurnoDeleteView(LoginRequiredMixin, AuditoriaMixin, DeleteView):
+class TurnoDeleteView(SoloRecepcionMixin, LoginRequiredMixin, AuditoriaMixin, DeleteView):
     model = Turno
     template_name = 'turnos/confirmar_eliminar.html'
     success_url = reverse_lazy('turnos:agenda')
@@ -328,7 +345,7 @@ class TurnoDeleteView(LoginRequiredMixin, AuditoriaMixin, DeleteView):
         return response
 
 
-class CambiarEstadoTurnoView(LoginRequiredMixin, View):
+class CambiarEstadoTurnoView(SoloRecepcionMixin, LoginRequiredMixin, View):
     def post(self, request, pk, estado):
         turno = get_object_or_404(Turno, pk=pk)
         estados_validos = [e.value for e in EstadoTurno]

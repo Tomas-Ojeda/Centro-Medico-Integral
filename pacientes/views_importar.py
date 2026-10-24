@@ -20,6 +20,7 @@ from django.shortcuts import render
 
 from .models import Paciente, ObraSocial
 from auditoria.mixins import AuditoriaMixin
+from consultorio_salto.permisos import SoloRecepcionMixin
 
 # ── Constantes ────────────────────────────────────────────────
 OBRAS_VALIDAS = [c[0] for c in ObraSocial.choices]
@@ -115,7 +116,7 @@ def _fila_a_paciente(fila_dict):
 
 # ── Vistas ─────────────────────────────────────────────────────
 
-class ImportarPlanillaView(LoginRequiredMixin, AuditoriaMixin, View):
+class ImportarPlanillaView(SoloRecepcionMixin, LoginRequiredMixin, AuditoriaMixin, View):
     template_name = 'pacientes/importar_planilla.html'
     accion = 'importar'
     modelo = 'Paciente'
@@ -306,7 +307,7 @@ class ImportarPlanillaView(LoginRequiredMixin, AuditoriaMixin, View):
 
 # ── Guardar pacientes confirmados ──────────────────────────────
 
-class GuardarPacientesImportadosView(LoginRequiredMixin, AuditoriaMixin, View):
+class GuardarPacientesImportadosView(SoloRecepcionMixin, LoginRequiredMixin, AuditoriaMixin, View):
     accion = 'crear'
     modelo = 'Paciente'
 

@@ -6,10 +6,12 @@
 {% block page_subtitle %}{{ total }} paciente{{ total|pluralize }} registrado{{ total|pluralize }}{% endblock %}
 
 {% block header_action %}
+{% if es_recepcion %}
 <div style="display:flex;gap:8px;">
     <a href="{% url 'pacientes:importar' %}" class="btn btn-outline">📋 Importar planilla / Excel</a>
     <a href="{% url 'pacientes:crear' %}" class="btn btn-primary">👤+ Nuevo Paciente</a>
 </div>
+{% endif %}
 {% endblock %}
 
 {% block content %}
@@ -78,7 +80,9 @@
             <div class="icon">👤</div>
             <h3>Seleccioná un paciente</h3>
             <p>Hacé clic en un paciente de la lista para ver su perfil e historial clínico.</p>
+            {% if es_recepcion %}
             <a href="{% url 'pacientes:crear' %}" class="btn btn-primary" style="margin-top:16px;">+ Registrar nuevo paciente</a>
+            {% endif %}
         </div>
     </div>
 

@@ -51,6 +51,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'consultorio_salto.middleware.RolRequeridoMiddleware',
     'axes.middleware.AxesMiddleware',  # Debe ir después de AuthenticationMiddleware
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
@@ -70,6 +71,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'consultorio_salto.context_processors.nombre_centro',
+                'consultorio_salto.context_processors.roles',
             ],
         },
     },

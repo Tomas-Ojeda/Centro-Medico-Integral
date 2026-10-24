@@ -1,6 +1,6 @@
 from datetime import date
 
-from django.contrib.auth.models import User
+from django.contrib.auth.models import Group, User
 from django.test import TestCase
 from django.urls import reverse
 
@@ -12,6 +12,9 @@ class ProfesionalEspecialidadTests(TestCase):
         self.user = User.objects.create_user(
             username='recepcion',
             password='clave-segura-123',
+        )
+        self.user.groups.add(
+            Group.objects.get_or_create(name='Recepcion')[0]
         )
         self.client.force_login(self.user)
 

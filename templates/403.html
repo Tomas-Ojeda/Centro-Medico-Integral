@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+
+{% block title %}Acceso denegado — {{ NOMBRE_CENTRO }}{% endblock %}
+{% block page_title %}Acceso denegado{% endblock %}
+{% block page_subtitle %}No tenés permisos para ver esta sección{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width:640px;margin:40px auto;text-align:center;padding:36px;">
+    <div style="font-size:42px;margin-bottom:12px;">🔒</div>
+    <h2 style="font-size:22px;color:var(--text-primary);margin-bottom:10px;">Acceso denegado</h2>
+    <p style="color:var(--text-secondary);font-size:14px;line-height:1.6;">
+        {% if mensaje %}
+            {{ mensaje }}
+        {% elif exception %}
+            {{ exception }}
+        {% else %}
+            Tu usuario no tiene permisos para acceder a esta sección.
+        {% endif %}
+    </p>
+    <div style="display:flex;gap:8px;justify-content:center;margin-top:24px;flex-wrap:wrap;">
+        <a href="javascript:history.back()" class="btn btn-outline">← Volver</a>
+        {% if user.is_authenticated %}
+        <form method="post" action="{% url 'logout' %}" style="margin:0;">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-primary">Cerrar sesión</button>
+        </form>
+        {% else %}
+        <a href="{% url 'login' %}" class="btn btn-primary">Iniciar sesión</a>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

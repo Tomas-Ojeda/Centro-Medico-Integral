@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 
 
@@ -25,6 +26,15 @@ class Profesional(models.Model):
     foto = models.ImageField(upload_to='profesionales/', blank=True, null=True)
     fecha_ingreso = models.DateField()
     activo = models.BooleanField(default=True)
+    usuario = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='profesional',
+        verbose_name='Usuario de acceso',
+        help_text='Vinculación con el usuario de Django. Se administra solo desde /admin.',
+    )
 
     class Meta:
         ordering = ['apellido', 'nombre']
