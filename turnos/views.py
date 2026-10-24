@@ -3,13 +3,16 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.urls import reverse_lazy
 from django.shortcuts import get_object_or_404, redirect
 from django.views import View
+from django.core.exceptions import ValidationError
 from django.utils import timezone
-from django.db.models import Q
+from django.db import transaction
+from django.db.models import Count, Q
 from django.http import HttpResponse, JsonResponse
 from datetime import date, timedelta
 import csv
 from .models import Turno, EstadoTurno
 from .forms import TurnoForm
+from historias.models import AdjuntoHistoria
 from profesionales.models import Profesional
 from pacientes.models import Paciente
 from auditoria.mixins import AuditoriaMixin
@@ -27,7 +30,9 @@ class TurnoAgendaView(RecepcionOProfesionalMixin, LoginRequiredMixin, ListView):
     def get_queryset(self):
         qs = Turno.objects.select_related(
             'paciente', 'profesional'
-        ).prefetch_related('profesional__especialidades')
+        ).prefetch_related('profesional__especialidades').annotate(
+            num_adjuntos=Count('adjuntos_historia', distinct=True)
+        )
         if self.profesional:
             qs = qs.filter(profesional=self.profesional)
         fecha_str = self.request.GET.get('fecha')
@@ -137,7 +142,9 @@ class TurnoAgendaView(RecepcionOProfesionalMixin, LoginRequiredMixin, ListView):
             turnos_mes = turnos_mes.filter(profesional=self.profesional)
         turnos_mes = turnos_mes.select_related(
             'paciente', 'profesional'
-        ).prefetch_related('profesional__especialidades')
+        ).prefetch_related('profesional__especialidades').annotate(
+            num_adjuntos=Count('adjuntos_historia', distinct=True)
+        )
         
         # Crear diccionario de turnos por día
         turnos_por_dia = {}
@@ -151,6 +158,7 @@ class TurnoAgendaView(RecepcionOProfesionalMixin, LoginRequiredMixin, ListView):
                 'paciente': f'{turno.paciente.apellido}, {turno.paciente.nombre}',
                 'estado': turno.estado,
                 'especialidad': turno.especialidad_actual,
+                'num_adjuntos': turno.num_adjuntos,
             })
         
         # Construir las semanas del calendario
@@ -307,8 +315,20 @@ class TurnoCreateView(SoloRecepcionMixin, LoginRequiredMixin, AuditoriaMixin, Cr
         return initial
 
     def form_valid(self, form):
-        response = super().form_valid(form)
-        self.registrar_acceso(self.request, form.instance)
+        try:
+            with transaction.atomic():
+                response = super().form_valid(form)
+                for archivo in form.cleaned_data.get('adjuntos') or []:
+                    AdjuntoHistoria.objects.create(
+                        paciente=form.instance.paciente,
+                        turno=form.instance,
+                        archivo=archivo,
+                        subido_por=self.request.user,
+                    )
+                self.registrar_acceso(self.request, form.instance)
+        except ValidationError as exc:
+            form.add_error('adjuntos', exc)
+            return self.form_invalid(form)
         return response
 
 
@@ -323,11 +343,26 @@ class TurnoUpdateView(SoloRecepcionMixin, LoginRequiredMixin, AuditoriaMixin, Up
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx['titulo'] = 'Editar Turno'
+        ctx['adjuntos_turno'] = self.object.adjuntos_historia.select_related(
+            'subido_por'
+        ).order_by('-creado')
         return ctx
 
     def form_valid(self, form):
-        response = super().form_valid(form)
-        self.registrar_acceso(self.request, form.instance)
+        try:
+            with transaction.atomic():
+                response = super().form_valid(form)
+                for archivo in form.cleaned_data.get('adjuntos') or []:
+                    AdjuntoHistoria.objects.create(
+                        paciente=form.instance.paciente,
+                        turno=form.instance,
+                        archivo=archivo,
+                        subido_por=self.request.user,
+                    )
+                self.registrar_acceso(self.request, form.instance)
+        except ValidationError as exc:
+            form.add_error('adjuntos', exc)
+            return self.form_invalid(form)
         return response
 
 

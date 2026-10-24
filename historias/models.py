@@ -1,11 +1,23 @@
+import io
 import os
 import uuid
+
 import magic
-from django.db import models
+from PIL import Image, ImageOps, UnidentifiedImageError
+from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.core.files.base import ContentFile
 from django.core.validators import FileExtensionValidator
+from django.db import models
+from django.db.models.signals import post_delete
+from django.dispatch import receiver
+
 from pacientes.models import Paciente
 from profesionales.models import Profesional
+
+
+EXTENSIONES_ADJUNTO = ['pdf', 'jpg', 'jpeg', 'png']
+EXTENSIONES_IMAGEN = {'.jpg', '.jpeg', '.png'}
 
 
 def ruta_adjunto_aleatoria(instance, filename):
@@ -45,6 +57,119 @@ def validar_tamano_archivo(archivo):
         )
 
 
+def validar_imagen_adjunto(archivo):
+    """Verifica que una imagen JPG/PNG pueda abrirse con Pillow.
+
+    Los PDF no se procesan con Pillow: se conservan tal cual.
+    """
+    extension = os.path.splitext(getattr(archivo, 'name', ''))[1].lower()
+    if extension not in EXTENSIONES_IMAGEN:
+        return
+
+    try:
+        archivo.seek(0)
+        with Image.open(archivo) as imagen:
+            imagen.verify()
+    except (
+        UnidentifiedImageError,
+        OSError,
+        ValueError,
+        SyntaxError,
+        Image.DecompressionBombError,
+    ) as exc:
+        raise ValidationError(
+            'El archivo no es una imagen válida o está dañado.'
+        ) from exc
+    finally:
+        try:
+            archivo.seek(0)
+        except (AttributeError, OSError):
+            pass
+
+
+def procesar_archivo_adjunto(archivo):
+    """Normaliza imágenes antes de guardarlas en el storage.
+
+    - Aplica la orientación EXIF.
+    - Elimina los metadatos EXIF (incluida la ubicación GPS).
+    - Reduce el lado mayor a 2000 px.
+    - Guarda JPG con calidad 85 y PNG sin alterar su transparencia.
+    - Los PDF se devuelven sin cambios.
+    """
+    extension = os.path.splitext(getattr(archivo, 'name', ''))[1].lower()
+    if extension not in EXTENSIONES_IMAGEN:
+        return archivo
+
+    try:
+        archivo.seek(0)
+        with Image.open(archivo) as original:
+            imagen = ImageOps.exif_transpose(original)
+            imagen.thumbnail((2000, 2000), Image.Resampling.LANCZOS)
+
+            # Quitar metadatos antes de volver a codificar.
+            for clave in ('exif', 'icc_profile', 'xmp', 'XML:com.adobe.xmp'):
+                imagen.info.pop(clave, None)
+
+            salida = io.BytesIO()
+            if extension in {'.jpg', '.jpeg'}:
+                if imagen.mode in ('RGBA', 'LA') or (
+                    imagen.mode == 'P' and 'transparency' in imagen.info
+                ):
+                    imagen = imagen.convert('RGBA')
+                    fondo = Image.new('RGB', imagen.size, (255, 255, 255))
+                    fondo.paste(imagen, mask=imagen.getchannel('A'))
+                    imagen = fondo
+                elif imagen.mode != 'RGB':
+                    imagen = imagen.convert('RGB')
+                imagen.save(
+                    salida,
+                    format='JPEG',
+                    quality=85,
+                    optimize=True,
+                )
+            else:
+                if imagen.mode == 'CMYK':
+                    imagen = imagen.convert('RGB')
+                elif imagen.mode not in ('RGB', 'RGBA', 'L', 'LA'):
+                    imagen = imagen.convert('RGBA')
+                imagen.save(salida, format='PNG', optimize=True)
+
+        salida.seek(0)
+        return ContentFile(
+            salida.read(),
+            name=os.path.basename(archivo.name),
+        )
+    except (
+        UnidentifiedImageError,
+        OSError,
+        ValueError,
+        SyntaxError,
+        Image.DecompressionBombError,
+    ) as exc:
+        raise ValidationError(
+            'No se pudo procesar la imagen adjunta.'
+        ) from exc
+    finally:
+        try:
+            archivo.seek(0)
+        except (AttributeError, OSError):
+            pass
+
+
+VALIDADORES_ADJUNTO = [
+    FileExtensionValidator(allowed_extensions=EXTENSIONES_ADJUNTO),
+    validar_tipo_mime,
+    validar_tamano_archivo,
+]
+VALIDADORES_ADJUNTO_HISTORIA = VALIDADORES_ADJUNTO + [validar_imagen_adjunto]
+
+
+def validar_archivo_adjunto(archivo):
+    """Ejecuta todas las validaciones de un adjunto de historia clínica."""
+    for validador in VALIDADORES_ADJUNTO_HISTORIA:
+        validador(archivo)
+
+
 class Consulta(models.Model):
     paciente = models.ForeignKey(
         Paciente, on_delete=models.CASCADE, related_name='consultas'
@@ -62,11 +187,7 @@ class Consulta(models.Model):
         upload_to=ruta_adjunto_aleatoria,
         blank=True,
         null=True,
-        validators=[
-            FileExtensionValidator(allowed_extensions=['pdf', 'jpg', 'jpeg', 'png']),
-            validar_tipo_mime,
-            validar_tamano_archivo,
-        ],
+        validators=VALIDADORES_ADJUNTO,
     )
     es_mas_reciente = models.BooleanField(default=False)
     creado = models.DateTimeField(auto_now_add=True)
@@ -95,6 +216,82 @@ class Consulta(models.Model):
         # Mark this as most recent for the patient
         Consulta.objects.filter(paciente=self.paciente).exclude(pk=self.pk).update(es_mas_reciente=False)
         Consulta.objects.filter(pk=self.pk).update(es_mas_reciente=True)
+
+
+class AdjuntoHistoria(models.Model):
+    """Archivo de historia clínica del paciente (foto o PDF)."""
+
+    paciente = models.ForeignKey(
+        Paciente,
+        on_delete=models.CASCADE,
+        related_name='adjuntos_historia',
+        verbose_name='Paciente',
+    )
+    turno = models.ForeignKey(
+        'turnos.Turno',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='adjuntos_historia',
+        verbose_name='Turno',
+    )
+    archivo = models.FileField(
+        upload_to=ruta_adjunto_aleatoria,
+        validators=VALIDADORES_ADJUNTO_HISTORIA,
+        verbose_name='Archivo',
+    )
+    descripcion = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name='Descripción',
+    )
+    subido_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='adjuntos_historia_subidos',
+        verbose_name='Subido por',
+    )
+    creado = models.DateTimeField(auto_now_add=True, verbose_name='Creado')
+
+    class Meta:
+        ordering = ['-creado']
+        verbose_name = 'Adjunto de historia clínica'
+        verbose_name_plural = 'Adjuntos de historia clínica'
+
+    def __str__(self):
+        return f'Adjunto de {self.paciente} — {self.creado:%d/%m/%Y}'
+
+    @property
+    def extension(self):
+        return os.path.splitext(self.archivo.name)[1].lower()
+
+    @property
+    def es_imagen(self):
+        return self.extension in EXTENSIONES_IMAGEN
+
+    @property
+    def es_pdf(self):
+        return self.extension == '.pdf'
+
+    @property
+    def nombre_archivo(self):
+        return os.path.basename(self.archivo.name)
+
+    def save(self, *args, **kwargs):
+        if self.archivo and not getattr(self.archivo, '_committed', True):
+            archivo_procesado = procesar_archivo_adjunto(self.archivo)
+            if archivo_procesado is not self.archivo:
+                self.archivo = archivo_procesado
+        super().save(*args, **kwargs)
+
+
+@receiver(post_delete, sender=AdjuntoHistoria)
+def eliminar_archivo_adjunto_historia(sender, instance, **kwargs):
+    """Borra el archivo del storage cuando se elimina el registro."""
+    if instance.archivo:
+        instance.archivo.delete(save=False)
 
 
 class CampoAdicional(models.Model):

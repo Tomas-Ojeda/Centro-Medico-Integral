@@ -161,8 +161,15 @@
             {% if turno.motivo %}
             <div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">📋 {{ turno.motivo }}</div>
             {% endif %}
-            {% if turno.observaciones %}
-            <div style="font-size:12px;color:#7c3aed;margin-top:2px;">💬 {{ turno.observaciones }}</div>
+            {% if turno.observaciones or turno.num_adjuntos %}
+            <div style="font-size:12px;color:#7c3aed;margin-top:2px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                {% if turno.observaciones %}<span>💬 {{ turno.observaciones }}</span>{% endif %}
+                {% if turno.num_adjuntos %}
+                <span title="{{ turno.num_adjuntos }} adjunto{{ turno.num_adjuntos|pluralize }}" style="font-size:11px;color:var(--text-secondary);white-space:nowrap;">
+                    📎 {{ turno.num_adjuntos }}
+                </span>
+                {% endif %}
+            </div>
             {% endif %}
         </div>
 

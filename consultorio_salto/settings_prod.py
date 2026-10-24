@@ -60,7 +60,8 @@ STATIC_URL = '/static/'
 
 # ─── Media files (NO se sirven por nginx, solo por vistas autenticadas) ─
 MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
+# MEDIA_ROOT se hereda de settings.py: variable de entorno MEDIA_ROOT
+# (default BASE_DIR/media). En Render se puede montar un Persistent Disk.
 
 # ─── WhiteNoise (solo archivos estáticos, NO media) ──────────────
 STORAGES = {

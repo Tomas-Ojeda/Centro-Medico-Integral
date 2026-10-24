@@ -7,8 +7,11 @@
 {% block content %}
 <div style="max-width:600px;">
     <div class="card">
-        <form method="post" novalidate>
+        <form method="post" enctype="multipart/form-data" novalidate>
             {% csrf_token %}
+            {% if form.non_field_errors %}
+            <ul class="errorlist">{% for e in form.non_field_errors %}<li>{{ e }}</li>{% endfor %}</ul>
+            {% endif %}
             <div class="form-grid">
                 <div class="form-group full">
                     <label>Paciente *</label>
@@ -47,6 +50,29 @@
                     <label>Observaciones</label>
                     {{ form.observaciones }}
                 </div>
+                <div class="form-group full">
+                    <label>{{ form.adjuntos.label }}</label>
+                    {{ form.adjuntos }}
+                    <div style="font-size:11px;color:var(--text-secondary);">
+                        {{ form.adjuntos.help_text }} En el celular podés usar cámara o galería.
+                    </div>
+                    {% if form.adjuntos.errors %}
+                    <ul class="errorlist">{% for e in form.adjuntos.errors %}<li>{{ e }}</li>{% endfor %}</ul>
+                    {% endif %}
+                </div>
+                {% if adjuntos_turno %}
+                <div class="form-group full">
+                    <label>Adjuntos existentes</label>
+                    <div style="display:flex;flex-direction:column;gap:6px;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--input-bg);">
+                        {% for adjunto in adjuntos_turno %}
+                        <a href="{% url 'historias:descargar_adjunto_historia' adjunto.pk %}" target="_blank" rel="noopener" class="file-link">
+                            📎 {{ adjunto.descripcion|default:"Archivo adjunto" }}
+                            <span style="font-size:11px;color:var(--text-secondary);">· {{ adjunto.creado|date:"d/m/Y H:i" }}</span>
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
             </div>
             <div class="form-actions">
                 <a href="{% url 'turnos:agenda' %}" class="btn btn-outline">Cancelar</a>

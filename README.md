@@ -119,6 +119,7 @@ Acceder en `http://localhost`
 | `SECURE_SSL_REDIRECT` | Redirigir HTTP a HTTPS (True en producción) |
 | `SESSION_COOKIE_AGE` | Duración de sesión en segundos (default: 3600) |
 | `ADMIN_URL` | Ruta del admin (default: admin/) |
+| `MEDIA_ROOT` | Ruta de archivos subidos (default: `BASE_DIR/media`) |
 | `DB_NAME` | Nombre de la base de datos PostgreSQL |
 | `DB_USER` | Usuario de PostgreSQL |
 | `DB_PASSWORD` | Contraseña de PostgreSQL |
@@ -130,7 +131,11 @@ Acceder en `http://localhost`
 1. Crear servicio web en Render con el repositorio
 2. Configurar variables de entorno (ver tabla arriba)
 3. `DJANGO_SETTINGS_MODULE=consultorio_salto.settings_prod`
-4. Comando de inicio: `gunicorn consultorio_salto.wsgi:application --bind 0.0.0.0:$PORT`
+4. Comando de inicio: `gunicorn consultorio_salto.wsgi:application --bind 0.0.0.0:$PORT --timeout 120`
+5. Para conservar los archivos adjuntos entre despliegues, montar un Persistent
+   Disk y definir `MEDIA_ROOT` con la ruta de montaje (por ejemplo,
+   `/var/data/media`). En `render.yaml` hay un bloque `disk` comentado con las
+   instrucciones.
 
 ## Estructura del proyecto
 

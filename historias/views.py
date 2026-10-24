@@ -1,6 +1,9 @@
 from django.views.generic import CreateView, UpdateView, DeleteView
 from django.views import View
+from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.core.exceptions import ValidationError
+from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse_lazy, reverse
 from django.http import FileResponse, Http404
@@ -9,7 +12,7 @@ import os
 import mimetypes
 from pathlib import Path
 from pacientes.models import Paciente
-from .models import Consulta
+from .models import AdjuntoHistoria, Consulta, validar_archivo_adjunto
 from .forms import ConsultaForm
 from auditoria.mixins import AuditoriaMixin
 from consultorio_salto.permisos import (
@@ -157,3 +160,103 @@ class DescargarArchivoAdjuntoView(RecepcionOProfesionalMixin, LoginRequiredMixin
             return response
         except (IOError, OSError):
             raise Http404("Error al leer el archivo")
+
+
+class SubirAdjuntoHistoriaView(RecepcionOProfesionalMixin, LoginRequiredMixin, AuditoriaMixin, View):
+    """Sube un archivo a la historia clínica del paciente."""
+
+    accion = 'crear'
+    modelo = 'AdjuntoHistoria'
+
+    def get_paciente(self):
+        if self.profesional:
+            return get_object_or_404(
+                Paciente.objects.atendidos_por(self.profesional),
+                pk=self.kwargs['paciente_pk'],
+            )
+        return get_object_or_404(Paciente, pk=self.kwargs['paciente_pk'])
+
+    def post(self, request, paciente_pk):
+        paciente = self.get_paciente()
+        archivo = request.FILES.get('archivo')
+
+        if archivo is None:
+            messages.error(request, 'Seleccioná un archivo para adjuntar.')
+            return redirect('pacientes:detalle', pk=paciente.pk)
+
+        try:
+            validar_archivo_adjunto(archivo)
+            with transaction.atomic():
+                adjunto = AdjuntoHistoria.objects.create(
+                    paciente=paciente,
+                    archivo=archivo,
+                    descripcion=request.POST.get('descripcion', '').strip()[:255],
+                    subido_por=request.user,
+                )
+                self.registrar_acceso(request, adjunto)
+        except ValidationError as exc:
+            messages.error(request, ' '.join(exc.messages))
+            return redirect('pacientes:detalle', pk=paciente.pk)
+
+        messages.success(request, 'Adjunto agregado a la historia clínica.')
+        return redirect('pacientes:detalle', pk=paciente.pk)
+
+
+class EliminarAdjuntoHistoriaView(SoloRecepcionMixin, LoginRequiredMixin, AuditoriaMixin, View):
+    """Elimina un adjunto de historia clínica y su archivo del storage."""
+
+    accion = 'borrar'
+    modelo = 'AdjuntoHistoria'
+
+    def post(self, request, pk):
+        adjunto = get_object_or_404(
+            AdjuntoHistoria.objects.select_related('paciente'),
+            pk=pk,
+        )
+        paciente_id = adjunto.paciente_id
+        self.registrar_acceso(request, adjunto)
+        adjunto.delete()
+        messages.success(request, 'Adjunto eliminado.')
+        return redirect('pacientes:detalle', pk=paciente_id)
+
+
+class DescargarAdjuntoHistoriaView(RecepcionOProfesionalMixin, LoginRequiredMixin, AuditoriaMixin, View):
+    """Sirve un adjunto de historia clínica según el rol del usuario.
+
+    Usa ``archivo.open('rb')`` para no depender de ``.path`` y permitir
+    storages remotos en el futuro.
+    """
+
+    accion = 'descargar'
+    modelo = 'AdjuntoHistoria'
+
+    def get(self, request, pk):
+        adjuntos = AdjuntoHistoria.objects.select_related('paciente')
+        if self.profesional:
+            adjuntos = adjuntos.filter(
+                paciente__in=Paciente.objects.atendidos_por(self.profesional)
+            )
+        adjunto = get_object_or_404(adjuntos, pk=pk)
+
+        if not adjunto.archivo:
+            raise Http404('El adjunto no tiene archivo.')
+
+        content_type, _ = mimetypes.guess_type(adjunto.archivo.name)
+        if content_type is None:
+            content_type = 'application/octet-stream'
+
+        try:
+            archivo = adjunto.archivo.open('rb')
+        except (FileNotFoundError, OSError):
+            raise Http404('El archivo no existe en el servidor.')
+
+        self.registrar_acceso(request, adjunto)
+        response = FileResponse(
+            archivo,
+            content_type=content_type,
+            as_attachment=not adjunto.es_imagen,
+            filename=adjunto.nombre_archivo,
+        )
+        # Evita que el navegador adivine el tipo MIME (XSS).
+        response['X-Content-Type-Options'] = 'nosniff'
+        return response

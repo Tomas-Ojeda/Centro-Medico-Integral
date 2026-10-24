@@ -81,6 +81,9 @@ class PacienteDetailView(RecepcionOProfesionalMixin, LoginRequiredMixin, Auditor
             'profesional__especialidades'
         ).order_by('-fecha_hora')
         ctx['turnos'] = self.object.turnos.select_related('profesional').order_by('-fecha_hora')[:5]
+        ctx['adjuntos_historia'] = self.object.adjuntos_historia.select_related(
+            'subido_por', 'turno'
+        ).order_by('-creado')
         ctx['pacientes_sidebar'] = self.get_queryset()[:20]
         return ctx
 
