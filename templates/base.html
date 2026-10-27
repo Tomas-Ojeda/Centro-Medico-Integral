@@ -1,9 +1,10 @@
 {% load static %}
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-palette="{{ paleta_usuario }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token }}">
     <title>{% block title %}{{ NOMBRE_CENTRO }}{% endblock %}</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
@@ -15,10 +16,11 @@
             --sidebar-active: #2d3a56;
             --accent: #c9a84c;
             --accent-light: #e8c97a;
+            --accent-text: #7a5c14;
             --text-primary: #1e293b;
             --text-secondary: #64748b;
             --text-light: #94a3b8;
-            --bg-main: #f1f5f9;
+            --bg-main: #f6fafc;
             --bg-card: #ffffff;
             --border: #e2e8f0;
             --success: #22c55e;
@@ -59,6 +61,7 @@
             --cal-ausente-bg: rgba(100,116,139,0.15);
             --cal-ausente-text: #94a3b8;
         }
+        {% include 'includes/_paletas.html' %}
         html, body { height: 100%; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
         body { display: flex; background: var(--bg-main); color: var(--text-primary); transition: background 0.3s, color 0.3s; }
 
@@ -187,6 +190,74 @@
         .theme-toggle .icon-moon { display: block; }
         [data-theme="dark"] .theme-toggle .icon-sun { display: block; }
         [data-theme="dark"] .theme-toggle .icon-moon { display: none; }
+
+        /* ===== PALETTE PICKER ===== */
+        .palette-picker { position: relative; }
+        .palette-menu {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            width: 215px;
+            padding: 6px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            box-shadow: 0 12px 30px var(--shadow);
+            z-index: 500;
+        }
+        .palette-menu[hidden] { display: none; }
+        .palette-option {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 10px;
+            border: none;
+            border-radius: 7px;
+            background: transparent;
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 13px;
+            text-align: left;
+            cursor: pointer;
+        }
+        .palette-option:hover,
+        .palette-option:focus-visible {
+            background: var(--bg-main);
+            outline: none;
+        }
+        .palette-option[aria-checked="true"] { background: var(--bg-main); }
+        .palette-swatch {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            border: 1px solid rgba(0, 0, 0, 0.16);
+            flex-shrink: 0;
+        }
+        .palette-check {
+            margin-left: auto;
+            color: var(--accent-text);
+            opacity: 0;
+        }
+        .palette-option[aria-checked="true"] .palette-check { opacity: 1; }
+        [data-theme="dark"] .palette-check { color: var(--accent); }
+        .palette-toast {
+            position: fixed;
+            left: 50%;
+            bottom: 22px;
+            transform: translateX(-50%);
+            max-width: min(90vw, 420px);
+            padding: 10px 16px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--bg-card);
+            color: var(--text-primary);
+            box-shadow: 0 10px 30px var(--shadow);
+            font-size: 13px;
+            z-index: 1000;
+        }
+        .accent-text { color: var(--accent-text); }
+        [data-theme="dark"] .accent-text { color: var(--accent); }
 
         /* ===== CARDS ===== */
         .card {
@@ -682,6 +753,9 @@
             transition: color 0.2s;
         }
         .footer-link:hover {
+            color: var(--accent-text);
+        }
+        [data-theme="dark"] .footer-link:hover {
             color: var(--accent);
         }
         .footer-icon {
@@ -711,8 +785,8 @@
         <div class="brand-top">
             <div class="brand-logo"><i class="fas fa-heartbeat"></i></div>
             <div>
-                <div class="brand-name">Consultorios Médicos</div>
-                <div class="brand-sub">Salto de las Rosas</div>
+                <div class="brand-name">{{ NOMBRE_CENTRO_TITULO }}</div>
+                <div class="brand-sub">{{ NOMBRE_CENTRO_LOCALIDAD }}</div>
             </div>
         </div>
     </div>
@@ -766,7 +840,60 @@
         </div>
         <div style="display:flex;align-items:center;gap:12px;">
             {% block header_action %}{% endblock %}
-            <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" title="Cambiar tema">
+            <div class="palette-picker" id="palette-picker">
+                <button type="button" class="theme-toggle" id="palette-toggle"
+                        aria-label="Elegir paleta de colores" aria-haspopup="menu"
+                        aria-expanded="false" title="Elegir paleta de colores">
+                    <i class="fas fa-palette"></i>
+                </button>
+                <div class="palette-menu" id="palette-menu" role="menu"
+                     aria-label="Paletas de colores" hidden>
+                    <button type="button" class="palette-option" role="menuitemradio"
+                            data-palette-value="predeterminado"
+                            aria-checked="{% if paleta_usuario == 'predeterminado' %}true{% else %}false{% endif %}">
+                        <span class="palette-swatch" style="background:#c9a84c;"></span>
+                        <span>Predeterminado</span>
+                        <i class="fas fa-check palette-check"></i>
+                    </button>
+                    <button type="button" class="palette-option" role="menuitemradio"
+                            data-palette-value="menta"
+                            aria-checked="{% if paleta_usuario == 'menta' %}true{% else %}false{% endif %}">
+                        <span class="palette-swatch" style="background:#6cc3a8;"></span>
+                        <span>Menta</span>
+                        <i class="fas fa-check palette-check"></i>
+                    </button>
+                    <button type="button" class="palette-option" role="menuitemradio"
+                            data-palette-value="lavanda"
+                            aria-checked="{% if paleta_usuario == 'lavanda' %}true{% else %}false{% endif %}">
+                        <span class="palette-swatch" style="background:#a99be0;"></span>
+                        <span>Lavanda</span>
+                        <i class="fas fa-check palette-check"></i>
+                    </button>
+                    <button type="button" class="palette-option" role="menuitemradio"
+                            data-palette-value="durazno"
+                            aria-checked="{% if paleta_usuario == 'durazno' %}true{% else %}false{% endif %}">
+                        <span class="palette-swatch" style="background:#f0a98a;"></span>
+                        <span>Durazno</span>
+                        <i class="fas fa-check palette-check"></i>
+                    </button>
+                    <button type="button" class="palette-option" role="menuitemradio"
+                            data-palette-value="cielo"
+                            aria-checked="{% if paleta_usuario == 'cielo' %}true{% else %}false{% endif %}">
+                        <span class="palette-swatch" style="background:#7db7e8;"></span>
+                        <span>Cielo</span>
+                        <i class="fas fa-check palette-check"></i>
+                    </button>
+                    <button type="button" class="palette-option" role="menuitemradio"
+                            data-palette-value="rosa"
+                            aria-checked="{% if paleta_usuario == 'rosa' %}true{% else %}false{% endif %}">
+                        <span class="palette-swatch" style="background:#e8a0b4;"></span>
+                        <span>Rosa</span>
+                        <i class="fas fa-check palette-check"></i>
+                    </button>
+                </div>
+            </div>
+            <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()"
+                    aria-label="Cambiar tema" title="Cambiar tema">
                 <span class="icon-sun"><i class="fas fa-sun"></i></span>
                 <span class="icon-moon"><i class="fas fa-moon"></i></span>
             </button>
@@ -830,6 +957,145 @@ function toggleTheme() {
     document.documentElement.setAttribute('data-theme', next);
     localStorage.setItem('theme', next);
 }
+
+// ===== PALETTE PICKER =====
+(function() {
+    const picker = document.getElementById('palette-picker');
+    const toggle = document.getElementById('palette-toggle');
+    const menu = document.getElementById('palette-menu');
+    if (!picker || !toggle || !menu) return;
+
+    const root = document.documentElement;
+    const options = Array.from(menu.querySelectorAll('[data-palette-value]'));
+
+    function setActive(palette) {
+        root.setAttribute('data-palette', palette);
+        options.forEach((option) => {
+            option.setAttribute(
+                'aria-checked',
+                option.dataset.paletteValue === palette ? 'true' : 'false'
+            );
+        });
+    }
+
+    function openMenu() {
+        menu.hidden = false;
+        toggle.setAttribute('aria-expanded', 'true');
+        const active = options.find(
+            (option) => option.getAttribute('aria-checked') === 'true'
+        );
+        (active || options[0]).focus();
+    }
+
+    function closeMenu(returnFocus) {
+        menu.hidden = true;
+        toggle.setAttribute('aria-expanded', 'false');
+        if (returnFocus) toggle.focus();
+    }
+
+    function getCsrfToken() {
+        const meta = document.querySelector('meta[name="csrf-token"]');
+        if (meta && meta.content) return meta.content;
+        const match = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
+        return match ? decodeURIComponent(match[1]) : '';
+    }
+
+    function showNotice(message) {
+        const notice = document.createElement('div');
+        notice.className = 'palette-toast';
+        notice.setAttribute('role', 'status');
+        notice.setAttribute('aria-live', 'polite');
+        notice.textContent = message;
+        document.body.appendChild(notice);
+        window.setTimeout(() => notice.remove(), 4000);
+    }
+
+    async function savePalette(palette, previous) {
+        try {
+            const response = await fetch("{% url 'preferencias:paleta' %}", {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCsrfToken(),
+                    'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+                },
+                body: new URLSearchParams({paleta: palette}),
+                credentials: 'same-origin',
+            });
+            if (!response.ok) throw new Error('No se pudo guardar la paleta.');
+            const data = await response.json();
+            if (!data.ok || data.paleta !== palette) {
+                throw new Error('No se pudo guardar la paleta.');
+            }
+        } catch (error) {
+            setActive(previous);
+            showNotice('No se pudo guardar la paleta. Se mantuvo la anterior.');
+        }
+    }
+
+    setActive(root.getAttribute('data-palette') || 'predeterminado');
+
+    toggle.addEventListener('click', (event) => {
+        event.stopPropagation();
+        if (menu.hidden) {
+            openMenu();
+        } else {
+            closeMenu(true);
+        }
+    });
+
+    toggle.addEventListener('keydown', (event) => {
+        if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            openMenu();
+        }
+    });
+
+    options.forEach((option) => {
+        option.addEventListener('click', () => {
+            const palette = option.dataset.paletteValue;
+            const previous = root.getAttribute('data-palette') || 'predeterminado';
+            closeMenu(true);
+            if (palette === previous) return;
+            setActive(palette);
+            savePalette(palette, previous);
+        });
+    });
+
+    menu.addEventListener('keydown', (event) => {
+        const current = options.indexOf(document.activeElement);
+        if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            options[(current + 1) % options.length].focus();
+        } else if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            options[(current - 1 + options.length) % options.length].focus();
+        } else if (event.key === 'Home') {
+            event.preventDefault();
+            options[0].focus();
+        } else if (event.key === 'End') {
+            event.preventDefault();
+            options[options.length - 1].focus();
+        } else if (event.key === 'Escape') {
+            event.preventDefault();
+            closeMenu(true);
+        } else if (event.key === 'Tab') {
+            closeMenu(false);
+        }
+    });
+
+    document.addEventListener('click', (event) => {
+        if (!menu.hidden && !picker.contains(event.target)) {
+            closeMenu(false);
+        }
+    });
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && !menu.hidden) {
+            event.preventDefault();
+            closeMenu(true);
+        }
+    });
+})();
 </script>
 {% block extra_js %}{% endblock %}
 </body>

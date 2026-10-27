@@ -96,7 +96,7 @@
         <div class="card" style="margin-bottom:20px;">
             <div class="card-header">
                 <span class="card-title" style="display:flex;align-items:center;gap:8px;">
-                    <span style="color:var(--accent);">📎</span> Historia clínica adjunta
+                    <span class="accent-text">📎</span> Historia clínica adjunta
                 </span>
                 <button type="button" class="btn btn-primary btn-sm"
                         onclick="var form=document.getElementById('form-adjunto-historia'); form.style.display = form.style.display === 'none' || !form.style.display ? 'block' : 'none';">
@@ -187,7 +187,7 @@
         <div class="card">
             <div class="card-header">
                 <span class="card-title" style="display:flex;align-items:center;gap:8px;">
-                    <span style="color:var(--accent);">♡</span> Historial Clínico
+                    <span class="accent-text">♡</span> Historial Clínico
                 </span>
                 <a href="{% url 'historias:nueva_consulta' paciente.pk %}" class="btn btn-outline btn-sm">📄 Nueva Consulta</a>
             </div>

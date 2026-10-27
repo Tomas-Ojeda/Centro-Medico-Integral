@@ -11,7 +11,11 @@ from .permisos import (
 
 def nombre_centro(request):
     """Expone el nombre visible del centro a todas las plantillas."""
-    return {'NOMBRE_CENTRO': settings.NOMBRE_CENTRO}
+    return {
+        'NOMBRE_CENTRO': settings.NOMBRE_CENTRO,
+        'NOMBRE_CENTRO_TITULO': settings.NOMBRE_CENTRO_TITULO,
+        'NOMBRE_CENTRO_LOCALIDAD': settings.NOMBRE_CENTRO_LOCALIDAD,
+    }
 
 
 def roles(request):

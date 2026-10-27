@@ -6,6 +6,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # ─── Identidad del centro ───────────────────────────────────────
 NOMBRE_CENTRO = 'Consultorios Médicos - Salto de las Rosas'
+NOMBRE_CENTRO_TITULO = 'Consultorios Médicos'
+NOMBRE_CENTRO_LOCALIDAD = 'Salto de las Rosas'
 
 # ─── Seguridad (leer de variables de entorno) ───────────────────
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY')
@@ -42,6 +44,7 @@ INSTALLED_APPS = [
     'turnos',
     'historias',
     'auditoria',
+    'preferencias',
 ]
 
 MIDDLEWARE = [
@@ -72,6 +75,7 @@ TEMPLATES = [
                 'django.contrib.messages.context_processors.messages',
                 'consultorio_salto.context_processors.nombre_centro',
                 'consultorio_salto.context_processors.roles',
+                'preferencias.context_processors.paleta_usuario',
             ],
         },
     },

@@ -16,11 +16,23 @@ class NombreCentroConfigTests(TestCase):
             settings.NOMBRE_CENTRO,
             'Consultorios Médicos - Salto de las Rosas',
         )
+        self.assertEqual(
+            settings.NOMBRE_CENTRO_TITULO,
+            'Consultorios Médicos',
+        )
+        self.assertEqual(
+            settings.NOMBRE_CENTRO_LOCALIDAD,
+            'Salto de las Rosas',
+        )
 
     def test_context_processor_expone_nombre_centro(self):
         self.assertEqual(
             nombre_centro(None),
-            {'NOMBRE_CENTRO': settings.NOMBRE_CENTRO},
+            {
+                'NOMBRE_CENTRO': settings.NOMBRE_CENTRO,
+                'NOMBRE_CENTRO_TITULO': settings.NOMBRE_CENTRO_TITULO,
+                'NOMBRE_CENTRO_LOCALIDAD': settings.NOMBRE_CENTRO_LOCALIDAD,
+            },
         )
 
     def test_context_processor_registrado_en_templates(self):
@@ -51,8 +63,16 @@ class NombreCentroTemplatesTests(TestCase):
             f'<title>Iniciar Sesión — {settings.NOMBRE_CENTRO}</title>',
             html=False,
         )
-        self.assertContains(response, f'<h1>{settings.NOMBRE_CENTRO}</h1>', html=False)
-        self.assertContains(response, 'Salto de las Rosas')
+        self.assertContains(
+            response,
+            f'<h1>{settings.NOMBRE_CENTRO_TITULO}</h1>',
+            html=False,
+        )
+        self.assertContains(
+            response,
+            f'<p>{settings.NOMBRE_CENTRO_LOCALIDAD}</p>',
+            html=False,
+        )
         self.assertNotContains(response, 'Centro Médico Integral')
 
     def test_dashboard_sidebar_footer_y_title(self):
