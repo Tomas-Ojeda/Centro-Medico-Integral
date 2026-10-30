@@ -1,15 +1,18 @@
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView, DetailView
 from django.conf import settings
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.core.paginator import Paginator
 from django.urls import reverse_lazy
 from django.db.models import Q
 from django.http import JsonResponse, HttpResponse
 from django.shortcuts import get_object_or_404
 from django.views import View
 from django.utils import timezone
+from xml.sax.saxutils import escape
 from .models import Paciente
 from .forms import PacienteForm
 from historias.models import Consulta, ValorCampoAdicional
+from historias.permisos import puede_crear_notas, puede_ver_notas
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
@@ -85,6 +88,22 @@ class PacienteDetailView(RecepcionOProfesionalMixin, LoginRequiredMixin, Auditor
             'subido_por', 'turno'
         ).order_by('-creado')
         ctx['pacientes_sidebar'] = self.get_queryset()[:20]
+
+        if puede_ver_notas(self.request.user):
+            notas = self.object.notas.select_related(
+                'autor', 'profesional'
+            ).prefetch_related(
+                'profesional__especialidades'
+            ).order_by('-creado')
+            paginador = Paginator(notas, 20)
+            ctx['notas_page'] = paginador.get_page(
+                self.request.GET.get('notas_page')
+            )
+            ctx['puede_crear_notas'] = puede_crear_notas(self.request.user)
+        else:
+            ctx['notas_page'] = None
+            ctx['puede_crear_notas'] = False
+
         return ctx
 
     def get(self, request, *args, **kwargs):
@@ -333,6 +352,36 @@ class DescargarHistoriaPDFView(RecepcionOProfesionalMixin, LoginRequiredMixin, A
                     story.append(Paragraph(f'<b>Tratamiento:</b> {consulta.tratamiento}', styles['Value']))
                 
                 story.append(Spacer(1, 12))
+
+        # Anotaciones clínicas (respetan la visibilidad de recepción)
+        if puede_ver_notas(request.user):
+            notas = paciente.notas.select_related(
+                'autor', 'profesional'
+            ).prefetch_related(
+                'profesional__especialidades'
+            ).order_by('-creado')
+
+            story.append(Paragraph('Anotaciones', styles['SectionTitle']))
+
+            if not notas:
+                story.append(Paragraph('No hay anotaciones registradas.', styles['Value']))
+            else:
+                for nota in notas:
+                    fecha_nota = timezone.localtime(nota.creado).strftime('%d/%m/%Y %H:%M')
+                    autor = escape(nota.autor_nombre)
+                    especialidad = escape(nota.especialidad_mostrar)
+                    encabezado = f'{fecha_nota} — {autor}'
+                    if especialidad:
+                        encabezado += f' ({especialidad})'
+                    if nota.editado_en:
+                        encabezado += ' — editada'
+                    story.append(Paragraph(
+                        f'<b>{encabezado}</b>',
+                        styles['Value'],
+                    ))
+                    texto = escape(nota.texto).replace('\n', '<br/>')
+                    story.append(Paragraph(texto, styles['Value']))
+                    story.append(Spacer(1, 8))
         
         # Pie de página
         story.append(Spacer(1, 24))

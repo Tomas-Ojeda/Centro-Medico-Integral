@@ -2,22 +2,36 @@ from django.views.generic import CreateView, UpdateView, DeleteView
 from django.views import View
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse_lazy, reverse
-from django.http import FileResponse, Http404
+from django.http import FileResponse, Http404, JsonResponse
 from django.conf import settings
+from django.utils import timezone
 import os
 import mimetypes
 from pathlib import Path
 from pacientes.models import Paciente
-from .models import AdjuntoHistoria, Consulta, validar_archivo_adjunto
-from .forms import ConsultaForm
+from .models import (
+    AdjuntoHistoria,
+    CampoAdicional,
+    Consulta,
+    NotaClinica,
+    validar_archivo_adjunto,
+)
+from .forms import ConsultaForm, NotaClinicaForm
+from .permisos import (
+    puede_crear_notas,
+    puede_editar_nota,
+)
 from auditoria.mixins import AuditoriaMixin
 from consultorio_salto.permisos import (
     RecepcionOProfesionalMixin,
     SoloRecepcionMixin,
+    es_admin,
+    es_profesional,
+    profesional_actual,
 )
 
 
@@ -40,6 +54,16 @@ class ConsultaCreateView(RecepcionOProfesionalMixin, LoginRequiredMixin, Auditor
         kwargs = super().get_form_kwargs()
         kwargs['profesional_fijo'] = self.profesional
         return kwargs
+
+    def get_initial(self):
+        initial = super().get_initial()
+        # Recepción puede preseleccionar un profesional con ?profesional=,
+        # para que el formulario ofrezca también sus campos adicionales.
+        if not self.profesional:
+            profesional_id = self.request.GET.get('profesional')
+            if profesional_id:
+                initial['profesional'] = profesional_id
+        return initial
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
@@ -260,3 +284,143 @@ class DescargarAdjuntoHistoriaView(RecepcionOProfesionalMixin, LoginRequiredMixi
         # Evita que el navegador adivine el tipo MIME (XSS).
         response['X-Content-Type-Options'] = 'nosniff'
         return response
+
+
+class QuitarCampoAdicionalView(RecepcionOProfesionalMixin, LoginRequiredMixin, AuditoriaMixin, View):
+    """Soft-delete de un campo adicional.
+
+    El Admin puede quitar cualquier campo (incluidos los generales). Un
+    profesional solo puede quitar los campos de los que es dueño. Los
+    valores ya cargados en consultas se conservan.
+    """
+
+    accion = 'borrar'
+    modelo = 'CampoAdicional'
+
+    def post(self, request, pk):
+        campo = get_object_or_404(CampoAdicional, pk=pk)
+
+        if not es_admin(request.user):
+            if (
+                self.profesional is None
+                or campo.profesional_id != self.profesional.pk
+            ):
+                return JsonResponse(
+                    {'error': 'No tenés permiso para quitar este campo.'},
+                    status=403,
+                )
+
+        if campo.activo:
+            campo.activo = False
+            campo.save(update_fields=['activo'])
+            self.registrar_acceso(request, campo)
+
+        return JsonResponse({'ok': True, 'pk': campo.pk})
+
+
+class NotaClinicaCreateView(LoginRequiredMixin, AuditoriaMixin, View):
+    """Agrega una anotación clínica a un paciente."""
+
+    accion = 'crear'
+    modelo = 'NotaClinica'
+
+    def post(self, request, paciente_pk):
+        if not puede_crear_notas(request.user):
+            raise PermissionDenied(
+                'No tenés permiso para agregar anotaciones.'
+            )
+
+        if es_admin(request.user):
+            paciente = get_object_or_404(Paciente, pk=paciente_pk)
+        else:
+            profesional = profesional_actual(request.user)
+            if profesional is None:
+                raise PermissionDenied(
+                    'Tu usuario no está vinculado a un profesional.'
+                )
+            paciente = get_object_or_404(
+                Paciente.objects.atendidos_por(profesional),
+                pk=paciente_pk,
+            )
+
+        form = NotaClinicaForm(request.POST)
+        if not form.is_valid():
+            messages.error(
+                request,
+                'La anotación no puede estar vacía ni superar los 10.000 caracteres.',
+            )
+            return redirect('pacientes:detalle', pk=paciente.pk)
+
+        nota = form.save(commit=False)
+        nota.paciente = paciente
+        nota.autor = request.user
+        nota.save()
+        self.registrar_acceso(request, nota)
+        messages.success(request, 'Anotación agregada.')
+        return redirect('pacientes:detalle', pk=paciente.pk)
+
+
+class NotaClinicaUpdateView(LoginRequiredMixin, AuditoriaMixin, View):
+    """Edita una anotación. Solo el autor o el Admin."""
+
+    accion = 'editar'
+    modelo = 'NotaClinica'
+
+    def post(self, request, pk):
+        nota = get_object_or_404(
+            NotaClinica.objects.select_related('paciente'),
+            pk=pk,
+        )
+
+        if not puede_editar_nota(request.user, nota):
+            raise PermissionDenied(
+                'Solo el autor de la anotación puede editarla.'
+            )
+
+        if es_profesional(request.user):
+            profesional = profesional_actual(request.user)
+            if (
+                profesional is None
+                or not Paciente.objects.atendidos_por(profesional)
+                .filter(pk=nota.paciente_id)
+                .exists()
+            ):
+                raise Http404('No tenés acceso a este paciente.')
+
+        form = NotaClinicaForm(request.POST, instance=nota)
+        if not form.is_valid():
+            messages.error(
+                request,
+                'La anotación no puede estar vacía ni superar los 10.000 caracteres.',
+            )
+            return redirect('pacientes:detalle', pk=nota.paciente_id)
+
+        nota = form.save(commit=False)
+        nota.editado_en = timezone.now()
+        nota.save()
+        self.registrar_acceso(request, nota)
+        messages.success(request, 'Anotación actualizada.')
+        return redirect('pacientes:detalle', pk=nota.paciente_id)
+
+
+class NotaClinicaDeleteView(LoginRequiredMixin, AuditoriaMixin, View):
+    """Elimina una anotación. Solo el Admin."""
+
+    accion = 'borrar'
+    modelo = 'NotaClinica'
+
+    def post(self, request, pk):
+        if not es_admin(request.user):
+            raise PermissionDenied(
+                'Solo el administrador puede eliminar anotaciones.'
+            )
+
+        nota = get_object_or_404(
+            NotaClinica.objects.select_related('paciente'),
+            pk=pk,
+        )
+        paciente_id = nota.paciente_id
+        self.registrar_acceso(request, nota)
+        nota.delete()
+        messages.success(request, 'Anotación eliminada.')
+        return redirect('pacientes:detalle', pk=paciente_id)

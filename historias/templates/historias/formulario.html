@@ -78,28 +78,31 @@
                 </div>
                 <div id="campos-adicionales-list">
                     {% for campo in form.campos_adicionales %}
-                    <div class="additional-field">
+                    <div class="additional-field" data-campo-id="{{ campo.pk }}">
                         <div class="form-group full">
                             <label>{{ campo.nombre }}</label>
                             {{ form|get_field:campo.pk }}
-                            <button type="button" onclick="limpiarCampo(this)" style="margin-top:4px;padding:4px 8px;font-size:11px;background:transparent;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--text-secondary);">Limpiar</button>
+                            <div style="display:flex;gap:6px;margin-top:4px;">
+                                <button type="button" onclick="vaciarCampo(this)" style="padding:4px 8px;font-size:11px;background:transparent;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--text-secondary);">Vaciar</button>
+                                {% if es_admin %}
+                                <button type="button" class="btn-quitar-campo" data-url="{% url 'historias:quitar_campo_adicional' campo.pk %}" onclick="quitarCampoAdicional(this)" style="padding:4px 8px;font-size:11px;background:transparent;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:#dc2626;">Quitar campo</button>
+                                {% elif es_profesional and campo.profesional_id == profesional_actual.pk %}
+                                <button type="button" class="btn-quitar-campo" data-url="{% url 'historias:quitar_campo_adicional' campo.pk %}" onclick="quitarCampoAdicional(this)" style="padding:4px 8px;font-size:11px;background:transparent;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:#dc2626;">Quitar campo</button>
+                                {% endif %}
+                            </div>
                         </div>
                     </div>
                     {% endfor %}
-                    {% if form.instance.pk %}
-                        {% for valor in form.instance.campos_adicionales.all %}
-                            {% if valor.campo not in form.campos_adicionales %}
-                            <div class="additional-field">
-                                <div class="form-group full">
-                                    <label>{{ valor.campo.nombre }}</label>
-                                    <input type="text" name="campo_adicional_{{ valor.campo.pk }}" value="{{ valor.valor }}" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;">
-                                    <button type="button" onclick="limpiarCampo(this)" style="margin-top:4px;padding:4px 8px;font-size:11px;background:transparent;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--text-secondary);">Limpiar</button>
-                                </div>
-                            </div>
-                            {% endif %}
-                        {% endfor %}
-                    {% endif %}
-                    {% if not form.campos_adicionales and not form.instance.campos_adicionales.all %}
+                    {% for campo in form.campos_historicos %}
+                    <div class="additional-field">
+                        <div class="form-group full">
+                            <label>{{ campo.nombre }} <span class="badge badge-ausente" style="font-size:10px;">Campo inactivo</span></label>
+                            {{ form|get_field:campo.pk }}
+                            <button type="button" onclick="vaciarCampo(this)" style="margin-top:4px;padding:4px 8px;font-size:11px;background:transparent;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--text-secondary);">Vaciar</button>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    {% if not form.campos_adicionales and not form.campos_historicos %}
                     <p style="font-size:13px;color:var(--text-secondary);">Haga clic en "+ Agregar campo" para crear campos personalizados.</p>
                     {% endif %}
                 </div>
@@ -144,12 +147,55 @@ function eliminarCampoAdicional(id) {
     }
 }
 
-function limpiarCampo(button) {
+function vaciarCampo(button) {
     const formGroup = button.closest('.form-group');
     const input = formGroup.querySelector('input, select, textarea');
     if (input) {
         input.value = '';
     }
 }
+
+async function quitarCampoAdicional(button) {
+    if (!confirm('Este campo dejará de aparecer en nuevas consultas; los valores ya cargados se conservan.')) {
+        return;
+    }
+
+    const token = document.querySelector('meta[name="csrf-token"]');
+    try {
+        const response = await fetch(button.dataset.url, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': token ? token.content : '',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            alert(data.error || 'No se pudo quitar el campo.');
+            return;
+        }
+        const contenedor = button.closest('.additional-field');
+        if (contenedor) {
+            contenedor.remove();
+        }
+    } catch (error) {
+        alert('No se pudo quitar el campo.');
+    }
+}
+
+{% if es_recepcion and not form.instance.pk %}
+const selectProfesional = document.getElementById('id_profesional');
+if (selectProfesional) {
+    selectProfesional.addEventListener('change', function () {
+        const url = new URL(window.location.href);
+        if (this.value) {
+            url.searchParams.set('profesional', this.value);
+        } else {
+            url.searchParams.delete('profesional');
+        }
+        window.location.href = url.toString();
+    });
+}
+{% endif %}
 </script>
 {% endblock %}

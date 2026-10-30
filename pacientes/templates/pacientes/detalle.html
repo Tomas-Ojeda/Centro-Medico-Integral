@@ -183,6 +183,100 @@
             {% endif %}
         </div>
 
+        <!-- ANOTACIONES -->
+        {% if notas_page %}
+        <div class="card" style="margin-bottom:20px;">
+            <div class="card-header">
+                <span class="card-title" style="display:flex;align-items:center;gap:8px;">
+                    <span class="accent-text">📝</span> Anotaciones
+                </span>
+                <span style="font-size:12px;color:var(--text-secondary);">{{ notas_page.paginator.count }} en total</span>
+            </div>
+
+            {% if puede_crear_notas %}
+            <form method="post" action="{% url 'historias:nueva_nota' paciente.pk %}" style="margin-bottom:18px;padding:12px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;">
+                {% csrf_token %}
+                <div class="form-group" style="margin-bottom:8px;">
+                    <label>Nueva anotación</label>
+                    <textarea name="texto" rows="3" maxlength="10000" required placeholder="Escribí una anotación clínica..." style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;resize:vertical;"></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary btn-sm">Agregar anotación</button>
+            </form>
+            {% endif %}
+
+            {% if notas_page.object_list %}
+            <div style="display:flex;flex-direction:column;gap:12px;">
+                {% for nota in notas_page %}
+                <div style="border:1px solid var(--border);border-radius:10px;padding:12px;background:var(--input-bg);">
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
+                        <div style="font-size:12px;color:var(--text-secondary);">
+                            <strong style="color:var(--text-primary);">{{ nota.autor_nombre }}</strong>
+                            {% if nota.especialidad_mostrar %} · {{ nota.especialidad_mostrar }}{% endif %}
+                            · {{ nota.creado|date:"d/m/Y H:i" }}
+                            {% if nota.editado_en %}
+                            <span class="badge badge-pendiente" style="font-size:10px;margin-left:4px;">editada</span>
+                            {% endif %}
+                        </div>
+                        <div style="display:flex;gap:6px;">
+                            {% if es_admin or nota.autor_id == user.id %}
+                            <button type="button" class="btn btn-outline btn-sm"
+                                    onclick="var f=document.getElementById('editar-nota-{{ nota.pk }}'); f.style.display = f.style.display === 'none' || !f.style.display ? 'block' : 'none';">
+                                ✏️ Editar
+                            </button>
+                            {% endif %}
+                            {% if es_admin %}
+                            <form method="post" action="{% url 'historias:eliminar_nota' nota.pk %}" onsubmit="return confirm('¿Eliminar esta anotación?');" style="display:inline;">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-danger btn-sm" title="Eliminar anotación">🗑</button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <p style="font-size:13px;color:var(--text-primary);white-space:pre-wrap;margin:0;">{{ nota.texto }}</p>
+
+                    {% if es_admin or nota.autor_id == user.id %}
+                    <div id="editar-nota-{{ nota.pk }}" style="display:none;margin-top:10px;">
+                        <form method="post" action="{% url 'historias:editar_nota' nota.pk %}">
+                            {% csrf_token %}
+                            <textarea name="texto" rows="3" maxlength="10000" required style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;resize:vertical;">{{ nota.texto }}</textarea>
+                            <div style="display:flex;gap:8px;margin-top:6px;">
+                                <button type="submit" class="btn btn-primary btn-sm">Guardar cambios</button>
+                                <button type="button" class="btn btn-outline btn-sm"
+                                        onclick="document.getElementById('editar-nota-{{ nota.pk }}').style.display='none';">
+                                    Cancelar
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+
+            {% if notas_page.has_other_pages %}
+            <div style="display:flex;justify-content:center;gap:8px;margin-top:14px;">
+                {% if notas_page.has_previous %}
+                <a href="?notas_page={{ notas_page.previous_page_number }}" class="btn btn-outline btn-sm">← Anteriores</a>
+                {% endif %}
+                <span style="font-size:12px;color:var(--text-secondary);align-self:center;">
+                    Página {{ notas_page.number }} de {{ notas_page.paginator.num_pages }}
+                </span>
+                {% if notas_page.has_next %}
+                <a href="?notas_page={{ notas_page.next_page_number }}" class="btn btn-outline btn-sm">Siguientes →</a>
+                {% endif %}
+            </div>
+            {% endif %}
+            {% else %}
+            <div class="empty-state" style="padding:24px 16px;">
+                <div class="icon">📝</div>
+                <h3>Sin anotaciones</h3>
+                <p>Agregá notas clínicas con fecha y autor.</p>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
         <!-- HISTORIAL CLÍNICO -->
         <div class="card">
             <div class="card-header">

@@ -7,7 +7,7 @@ from PIL import Image, ImageOps, UnidentifiedImageError
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
-from django.core.validators import FileExtensionValidator
+from django.core.validators import FileExtensionValidator, MaxLengthValidator
 from django.db import models
 from django.db.models.signals import post_delete
 from django.dispatch import receiver
@@ -295,7 +295,11 @@ def eliminar_archivo_adjunto_historia(sender, instance, **kwargs):
 
 
 class CampoAdicional(models.Model):
-    """Campos personalizables que el usuario puede crear para las consultas."""
+    """Campos personalizables que el usuario puede crear para las consultas.
+
+    ``profesional`` es el dueño del campo. Cuando es ``NULL`` el campo es
+    general y lo ven todos los profesionales.
+    """
     nombre = models.CharField(max_length=100, verbose_name='Nombre del campo')
     tipo = models.CharField(
         max_length=20,
@@ -314,12 +318,27 @@ class CampoAdicional(models.Model):
         verbose_name='Opciones'
     )
     activo = models.BooleanField(default=True)
+    profesional = models.ForeignKey(
+        Profesional,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='campos_adicionales',
+        verbose_name='Profesional',
+        help_text='Vacío = campo general visible para todos.',
+    )
     creado = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ['nombre']
         verbose_name = 'Campo Adicional'
         verbose_name_plural = 'Campos Adicionales'
+        indexes = [
+            models.Index(
+                fields=['activo', 'profesional'],
+                name='hist_campo_act_prof_idx',
+            ),
+        ]
 
     def __str__(self):
         return self.nombre
@@ -342,3 +361,85 @@ class ValorCampoAdicional(models.Model):
 
     def __str__(self):
         return f'{self.campo.nombre}: {self.valor[:50]}'
+
+
+class NotaClinica(models.Model):
+    """Anotación clínica libre, con fecha y autor."""
+
+    paciente = models.ForeignKey(
+        Paciente,
+        on_delete=models.CASCADE,
+        related_name='notas',
+        verbose_name='Paciente',
+    )
+    consulta = models.ForeignKey(
+        Consulta,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='notas',
+        verbose_name='Consulta',
+    )
+    autor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='notas_clinicas',
+        verbose_name='Autor',
+    )
+    profesional = models.ForeignKey(
+        Profesional,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='notas_clinicas',
+        verbose_name='Profesional',
+    )
+    texto = models.TextField(
+        max_length=10000,
+        validators=[MaxLengthValidator(10000)],
+        verbose_name='Anotación',
+    )
+    creado = models.DateTimeField(auto_now_add=True, verbose_name='Creada')
+    editado_en = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name='Editada en',
+    )
+
+    class Meta:
+        ordering = ['-creado']
+        verbose_name = 'Anotación'
+        verbose_name_plural = 'Anotaciones'
+        indexes = [
+            models.Index(
+                fields=['paciente', 'creado'],
+                name='hist_nota_pac_creado_idx',
+            ),
+        ]
+
+    def __str__(self):
+        return f'Anotación de {self.paciente} — {self.creado:%d/%m/%Y %H:%M}'
+
+    def save(self, *args, **kwargs):
+        if not self.profesional_id and self.autor_id:
+            self.profesional = Profesional.objects.filter(
+                usuario_id=self.autor_id
+            ).first()
+        super().save(*args, **kwargs)
+
+    @property
+    def autor_nombre(self):
+        if not self.autor_id:
+            return 'Usuario eliminado'
+        return self.autor.get_full_name() or self.autor.username
+
+    @property
+    def especialidad_mostrar(self):
+        if not self.profesional_id:
+            return ''
+        return ', '.join(
+            especialidad.nombre
+            for especialidad in self.profesional.especialidades.all()
+        )

@@ -130,3 +130,10 @@ AXES_RESET_ON_SUCCESS = True  # Resetear contador al loguearse bien
 # La API key se lee de la variable de entorno ANTHROPIC_API_KEY
 # (console.anthropic.com → API Keys)
 ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY', '')
+
+# ─── Anotaciones clínicas ──────────────────────────────────────
+# Define si Recepción puede ver las anotaciones clínicas (y en el PDF).
+# Los profesionales y el Admin siempre las ven.
+NOTAS_VISIBLES_PARA_RECEPCION = (
+    os.environ.get('NOTAS_VISIBLES_PARA_RECEPCION', 'True') == 'True'
+)
