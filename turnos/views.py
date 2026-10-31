@@ -1,7 +1,8 @@
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.urls import reverse_lazy
-from django.shortcuts import get_object_or_404, redirect
+from django.contrib import messages
+from django.urls import reverse, reverse_lazy
+from django.shortcuts import get_object_or_404, redirect, render
 from django.views import View
 from django.core.exceptions import ValidationError
 from django.utils import timezone
@@ -11,7 +12,8 @@ from django.http import HttpResponse, JsonResponse
 from datetime import date, timedelta
 import csv
 from .models import Turno, EstadoTurno
-from .forms import TurnoForm
+from .forms import PagoTurnoForm, TurnoForm
+from .utils import texto_pago
 from historias.models import AdjuntoHistoria
 from profesionales.models import Profesional
 from pacientes.models import Paciente
@@ -29,7 +31,7 @@ class TurnoAgendaView(RecepcionOProfesionalMixin, LoginRequiredMixin, ListView):
 
     def get_queryset(self):
         qs = Turno.objects.select_related(
-            'paciente', 'profesional'
+            'paciente', 'profesional', 'pago_registrado_por'
         ).prefetch_related('profesional__especialidades').annotate(
             num_adjuntos=Count('adjuntos_historia', distinct=True)
         )
@@ -268,7 +270,7 @@ class ExportarAgendaCSVView(SoloRecepcionMixin, LoginRequiredMixin, AuditoriaMix
         turnos = Turno.objects.filter(
             fecha_hora__date=fecha
         ).select_related(
-            'paciente', 'profesional'
+            'paciente', 'profesional', 'pago_registrado_por'
         ).prefetch_related(
             'profesional__especialidades'
         ).order_by('fecha_hora')
@@ -278,8 +280,17 @@ class ExportarAgendaCSVView(SoloRecepcionMixin, LoginRequiredMixin, AuditoriaMix
         response.write('\ufeff')  # BOM para Excel
 
         writer = csv.writer(response)
-        writer.writerow(['Hora', 'Paciente', 'DNI', 'Especialidad', 'Profesional', 'Estado', 'Motivo', 'Observaciones'])
+        writer.writerow([
+            'Hora', 'Paciente', 'DNI', 'Especialidad', 'Profesional',
+            'Estado', 'Motivo', 'Observaciones', 'Forma de pago', 'Monto',
+            'Fecha de pago', 'Pago registrado por',
+        ])
         for t in turnos:
+            fecha_pago = ''
+            if t.fecha_pago:
+                fecha_pago = timezone.localtime(t.fecha_pago).strftime(
+                    '%d/%m/%Y %H:%M'
+                )
             writer.writerow([
                 t.fecha_hora.strftime('%H:%M'),
                 f'{t.paciente.apellido}, {t.paciente.nombre}',
@@ -289,6 +300,10 @@ class ExportarAgendaCSVView(SoloRecepcionMixin, LoginRequiredMixin, AuditoriaMix
                 t.get_estado_display(),
                 t.motivo,
                 t.observaciones,
+                t.get_forma_pago_display() if t.forma_pago else '',
+                f'{t.monto:.2f}' if t.monto is not None else '',
+                fecha_pago,
+                t.pago_registrado_por.username if t.pago_registrado_por else '',
             ])
 
         return response
@@ -388,3 +403,111 @@ class CambiarEstadoTurnoView(SoloRecepcionMixin, LoginRequiredMixin, View):
             turno.estado = estado
             turno.save()
         return redirect('turnos:agenda')
+
+
+class RegistrarPagoView(SoloRecepcionMixin, LoginRequiredMixin, AuditoriaMixin, View):
+    """Registro interno del cobro de un turno (Recepción/Admin)."""
+
+    accion = 'editar'
+    modelo = 'Turno'
+    template_name = 'turnos/pago_formulario.html'
+
+    def get_turno(self, pk):
+        return get_object_or_404(
+            Turno.objects.select_related('paciente', 'profesional'),
+            pk=pk,
+        )
+
+    def volver_a_la_agenda(self, turno):
+        fecha = timezone.localtime(turno.fecha_hora).date().isoformat()
+        return redirect(f"{reverse('turnos:agenda')}?fecha={fecha}")
+
+    def pago_bloqueado(self, request, turno):
+        if turno.permite_registrar_pago:
+            return False
+        messages.error(
+            request,
+            'No se puede registrar un pago en un turno cancelado o ausente.',
+        )
+        return True
+
+    def contexto(self, turno, form):
+        return {
+            'turno': turno,
+            'form': form,
+            'es_correccion': turno.pago_registrado,
+        }
+
+    def get(self, request, pk):
+        turno = self.get_turno(pk)
+        if self.pago_bloqueado(request, turno):
+            return self.volver_a_la_agenda(turno)
+
+        return render(
+            request,
+            self.template_name,
+            self.contexto(turno, PagoTurnoForm(instance=turno)),
+        )
+
+    def post(self, request, pk):
+        turno = self.get_turno(pk)
+        if self.pago_bloqueado(request, turno):
+            return self.volver_a_la_agenda(turno)
+
+        forma_anterior = turno.forma_pago
+        monto_anterior = turno.monto
+        fecha_anterior = turno.fecha_pago
+
+        form = PagoTurnoForm(request.POST, instance=turno)
+        if not form.is_valid():
+            turno.refresh_from_db()
+            return render(
+                request,
+                self.template_name,
+                self.contexto(turno, form),
+            )
+
+        with transaction.atomic():
+            pago = form.save(commit=False)
+            es_correccion = fecha_anterior is not None
+            if not es_correccion:
+                pago.fecha_pago = timezone.now()
+            pago.pago_registrado_por = request.user
+            pago.save(update_fields=[
+                'forma_pago',
+                'monto',
+                'fecha_pago',
+                'pago_registrado_por',
+                'modificado',
+            ])
+
+            if es_correccion:
+                detalle = (
+                    'Pago corregido. '
+                    f'Anterior: {texto_pago(forma_anterior, monto_anterior)} '
+                    f'(registrado el '
+                    f'{timezone.localtime(fecha_anterior).strftime("%d/%m/%Y %H:%M")}). '
+                    f'Nuevo: {texto_pago(pago.forma_pago, pago.monto)}.'
+                )
+            else:
+                detalle = (
+                    'Pago registrado: '
+                    f'{texto_pago(pago.forma_pago, pago.monto)}.'
+                )
+
+            self.registrar_acceso(
+                request,
+                pago,
+                accion='editar' if es_correccion else 'crear',
+                detalle=detalle,
+            )
+
+        if es_correccion:
+            messages.success(
+                request,
+                'Pago corregido. El valor anterior y el nuevo quedaron en auditoría.',
+            )
+        else:
+            messages.success(request, 'Pago registrado correctamente.')
+
+        return self.volver_a_la_agenda(pago)

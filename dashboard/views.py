@@ -1,16 +1,27 @@
 from django.views.generic import TemplateView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.utils import timezone
-from datetime import date, timedelta
+from django.db.models import Count, Q, Sum
+from datetime import date, datetime, time, timedelta
+from decimal import Decimal
 from pacientes.models import Paciente
 from profesionales.models import Profesional
-from turnos.models import Turno, EstadoTurno
+from turnos.models import Turno, EstadoTurno, FormaPago
 from historias.models import Consulta
-from consultorio_salto.permisos import RecepcionOProfesionalMixin
+from consultorio_salto.permisos import RecepcionOProfesionalMixin, es_recepcion
 
 
 class DashboardView(RecepcionOProfesionalMixin, LoginRequiredMixin, TemplateView):
     template_name = 'dashboard/index.html'
+
+    def get_fecha_caja(self):
+        fecha_str = self.request.GET.get('fecha_caja')
+        if fecha_str:
+            try:
+                return datetime.strptime(fecha_str, '%Y-%m-%d').date()
+            except ValueError:
+                pass
+        return timezone.localdate()
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
@@ -34,6 +45,53 @@ class DashboardView(RecepcionOProfesionalMixin, LoginRequiredMixin, TemplateView
         ctx['pacientes_recientes'] = pacientes.order_by('-fecha_alta')[:5]
         ctx['consultas_recientes'] = consultas.select_related('paciente', 'profesional').order_by('-fecha_hora')[:5]
         ctx['hoy'] = hoy
+
+        # ─── Caja del día (solo Recepción/Admin) ─────────────────
+        if es_recepcion(self.request.user):
+            fecha_caja = self.get_fecha_caja()
+            tz = timezone.get_current_timezone()
+            inicio = timezone.make_aware(
+                datetime.combine(fecha_caja, time.min),
+                tz,
+            )
+            fin = inicio + timedelta(days=1)
+            pagos = Turno.objects.filter(
+                fecha_pago__gte=inicio,
+                fecha_pago__lt=fin,
+            )
+            resumen = pagos.aggregate(
+                efectivo=Sum(
+                    'monto',
+                    filter=Q(forma_pago=FormaPago.EFECTIVO),
+                    default=Decimal('0.00'),
+                ),
+                transferencia=Sum(
+                    'monto',
+                    filter=Q(forma_pago=FormaPago.TRANSFERENCIA),
+                    default=Decimal('0.00'),
+                ),
+                general=Sum(
+                    'monto',
+                    filter=Q(
+                        forma_pago__in=[
+                            FormaPago.EFECTIVO,
+                            FormaPago.TRANSFERENCIA,
+                        ]
+                    ),
+                    default=Decimal('0.00'),
+                ),
+                cantidad=Count(
+                    'pk',
+                    filter=Q(
+                        forma_pago__in=[
+                            FormaPago.EFECTIVO,
+                            FormaPago.TRANSFERENCIA,
+                        ]
+                    ),
+                ),
+            )
+            ctx['caja_fecha'] = fecha_caja
+            ctx['caja'] = resumen
 
         # Resumen semana actual (lunes a domingo)
         lunes = hoy - timedelta(days=hoy.weekday())

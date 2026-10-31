@@ -1,8 +1,10 @@
+from decimal import Decimal, InvalidOperation
+
 from django import forms
 
 from historias.models import VALIDADORES_ADJUNTO_HISTORIA
 
-from .models import Turno
+from .models import FormaPago, Turno
 
 
 class MultipleFileInput(forms.FileInput):
@@ -65,3 +67,81 @@ class TurnoForm(forms.ModelForm):
             # Sin restricciones de horario: se puede agendar cualquier día y hora
             pass
         return fecha_hora
+
+
+class PagoTurnoForm(forms.ModelForm):
+    """Registro interno de cobro de un turno (no es comprobante fiscal)."""
+
+    monto = forms.CharField(
+        required=False,
+        label='Monto',
+        help_text='Obligatorio salvo para obra social / sin cargo.',
+        widget=forms.TextInput(
+            attrs={
+                'inputmode': 'decimal',
+                'autocomplete': 'off',
+                'placeholder': 'Ej: 12000 o 12000,50',
+            }
+        ),
+    )
+
+    class Meta:
+        model = Turno
+        fields = ['forma_pago', 'monto']
+        widgets = {
+            'forma_pago': forms.Select(),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['forma_pago'].required = False
+        if (
+            not self.is_bound
+            and self.instance
+            and self.instance.monto is not None
+        ):
+            self.initial['monto'] = f'{self.instance.monto:.2f}'
+
+    def clean_monto(self):
+        raw = (self.cleaned_data.get('monto') or '').strip()
+        if not raw:
+            return None
+
+        raw = raw.replace('$', '').replace(' ', '')
+        if ',' in raw:
+            # Formato argentino: 12.000,50
+            raw = raw.replace('.', '').replace(',', '.')
+
+        try:
+            monto = Decimal(raw)
+        except (InvalidOperation, ValueError):
+            raise forms.ValidationError('Ingresá un monto válido.')
+
+        if monto < 0:
+            raise forms.ValidationError('El monto no puede ser negativo.')
+        if monto >= Decimal('100000000'):
+            raise forms.ValidationError('El monto ingresado es demasiado grande.')
+        if monto != monto.quantize(Decimal('0.01')):
+            raise forms.ValidationError('El monto admite como máximo dos decimales.')
+
+        return monto.quantize(Decimal('0.01'))
+
+    def clean(self):
+        data = super().clean()
+        forma_pago = data.get('forma_pago')
+        monto = data.get('monto')
+
+        if not forma_pago:
+            self.add_error(
+                'forma_pago',
+                'Seleccioná la forma de pago.',
+            )
+            return data
+
+        if forma_pago == FormaPago.COBERTURA:
+            # Obra social / sin cargo: no se cobra monto.
+            data['monto'] = None
+        elif monto is None:
+            self.add_error('monto', 'Ingresá el monto cobrado.')
+
+        return data

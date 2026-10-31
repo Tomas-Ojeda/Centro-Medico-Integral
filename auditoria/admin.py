@@ -8,10 +8,10 @@ class LogAccesoAdmin(admin.ModelAdmin):
 
     list_display = ['usuario', 'fecha_hora', 'accion', 'modelo', 'objeto_id', 'ip']
     list_filter = ['accion', 'modelo', 'fecha_hora']
-    search_fields = ['usuario__username', 'ip', 'user_agent']
+    search_fields = ['usuario__username', 'ip', 'user_agent', 'detalle']
     readonly_fields = [
         'usuario', 'fecha_hora', 'accion', 'modelo',
-        'objeto_id', 'ip', 'user_agent'
+        'objeto_id', 'ip', 'user_agent', 'detalle'
     ]
     date_hierarchy = 'fecha_hora'
 

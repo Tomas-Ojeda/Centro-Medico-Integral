@@ -1,6 +1,8 @@
 from django import template
 from datetime import date
 
+from turnos.utils import formatear_pesos as _formatear_pesos
+
 register = template.Library()
 
 MESES_ES = {
@@ -40,6 +42,12 @@ def formatear_fecha_corta_es(value):
         return f'{value.day} de {mes}, {value.year}'
     except (AttributeError, KeyError):
         return str(value)
+
+@register.filter
+def pesos(value):
+    """Formatea un monto en pesos con separador de miles (ej: 12.000)."""
+    return _formatear_pesos(value)
+
 
 @register.filter
 def formatear_fecha_hora_es(value):

@@ -35,6 +35,11 @@ class LogAcceso(models.Model):
     objeto_id = models.PositiveIntegerField(null=True, blank=True, verbose_name='ID del objeto')
     ip = models.GenericIPAddressField(null=True, blank=True, verbose_name='IP')
     user_agent = models.TextField(blank=True, verbose_name='User-Agent')
+    detalle = models.TextField(
+        blank=True,
+        verbose_name='Detalle',
+        help_text='Valores anteriores y nuevos cuando corresponde.',
+    )
 
     class Meta:
         ordering = ['-fecha_hora']

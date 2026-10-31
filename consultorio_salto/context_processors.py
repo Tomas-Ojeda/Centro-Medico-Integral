@@ -28,6 +28,7 @@ def roles(request):
             'es_recepcion': False,
             'es_profesional': False,
             'profesional_actual': None,
+            'pagos_visibles_profesional': settings.PAGOS_VISIBLES_PARA_PROFESIONAL,
         }
 
     return {
@@ -36,4 +37,5 @@ def roles(request):
         'es_recepcion': es_recepcion(user),
         'es_profesional': es_profesional(user),
         'profesional_actual': profesional_actual(user),
+        'pagos_visibles_profesional': settings.PAGOS_VISIBLES_PARA_PROFESIONAL,
     }

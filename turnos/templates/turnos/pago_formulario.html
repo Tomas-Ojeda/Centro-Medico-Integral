@@ -1,0 +1,101 @@
+{% extends 'base.html' %}
+
+{% block title %}Registrar pago — {{ NOMBRE_CENTRO }}{% endblock %}
+{% block nav_turnos %}active{% endblock %}
+{% block page_title %}{% if es_correccion %}Corregir pago{% else %}Registrar pago{% endif %}{% endblock %}
+{% block page_subtitle %}Registro interno de cobro del turno{% endblock %}
+
+{% block content %}
+<div style="max-width:520px;">
+    <div class="card">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:16px;">
+            <div>
+                <div style="font-size:16px;font-weight:700;color:var(--text-primary);">
+                    {{ turno.paciente.apellido }}, {{ turno.paciente.nombre }}
+                </div>
+                <div style="font-size:12px;color:var(--text-secondary);margin-top:3px;">
+                    {{ turno.fecha_hora|date:"d/m/Y H:i" }} ·
+                    {{ turno.profesional.apellido }}, {{ turno.profesional.nombre }}
+                </div>
+            </div>
+            <span class="badge badge-{{ turno.estado }}">{{ turno.get_estado_display }}</span>
+        </div>
+
+        {% if es_correccion %}
+        <div class="alert alert-success" style="margin-bottom:16px;">
+            💵 Pago actual: <strong>{{ turno.pago_texto }}</strong>.
+            Al guardar, el valor anterior y el nuevo quedarán en auditoría.
+        </div>
+        {% endif %}
+
+        <form method="post" novalidate>
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+            <ul class="errorlist">
+                {% for error in form.non_field_errors %}<li>{{ error }}</li>{% endfor %}
+            </ul>
+            {% endif %}
+
+            <div class="form-group" style="margin-bottom:16px;">
+                <label for="{{ form.forma_pago.id_for_label }}">Forma de pago *</label>
+                {{ form.forma_pago }}
+                {% if form.forma_pago.errors %}
+                <ul class="errorlist">
+                    {% for error in form.forma_pago.errors %}<li>{{ error }}</li>{% endfor %}
+                </ul>
+                {% endif %}
+            </div>
+
+            <div class="form-group" id="grupo-monto" style="margin-bottom:8px;">
+                <label for="{{ form.monto.id_for_label }}">Monto *</label>
+                {{ form.monto }}
+                <div style="font-size:11px;color:var(--text-secondary);">
+                    {{ form.monto.help_text }}
+                </div>
+                {% if form.monto.errors %}
+                <ul class="errorlist">
+                    {% for error in form.monto.errors %}<li>{{ error }}</li>{% endfor %}
+                </ul>
+                {% endif %}
+            </div>
+
+            <p style="font-size:10px;color:var(--text-secondary);margin:14px 0 0;line-height:1.4;">
+                Registro interno de cobro. No es comprobante fiscal.
+            </p>
+
+            <div class="form-actions">
+                <a href="{% url 'turnos:agenda' %}?fecha={{ turno.fecha_hora|date:'Y-m-d' }}" class="btn btn-outline">Cancelar</a>
+                <button type="submit" class="btn btn-primary">
+                    {% if es_correccion %}Guardar corrección{% else %}Registrar pago{% endif %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    const forma = document.getElementById('{{ form.forma_pago.id_for_label }}');
+    const monto = document.getElementById('{{ form.monto.id_for_label }}');
+    const grupoMonto = document.getElementById('grupo-monto');
+    if (!forma || !monto) return;
+
+    function actualizar() {
+        const esCobertura = forma.value === 'cobertura';
+        monto.disabled = esCobertura;
+        if (esCobertura) {
+            monto.value = '';
+        }
+        if (grupoMonto) {
+            grupoMonto.style.opacity = esCobertura ? '0.55' : '1';
+        }
+    }
+
+    forma.addEventListener('change', actualizar);
+    actualizar();
+})();
+</script>
+{% endblock %}

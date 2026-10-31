@@ -137,3 +137,10 @@ ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY', '')
 NOTAS_VISIBLES_PARA_RECEPCION = (
     os.environ.get('NOTAS_VISIBLES_PARA_RECEPCION', 'True') == 'True'
 )
+
+# ─── Registro interno de pagos ─────────────────────────────────
+# Los profesionales nunca pueden registrar pagos. Si esta opción es True
+# pueden ver la insignia con la forma de pago y el monto en la agenda.
+PAGOS_VISIBLES_PARA_PROFESIONAL = (
+    os.environ.get('PAGOS_VISIBLES_PARA_PROFESIONAL', 'False') == 'True'
+)

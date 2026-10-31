@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load custom_filters %}
 
 {% block title %}Agenda de Turnos — {{ NOMBRE_CENTRO }}{% endblock %}
 {% block nav_turnos %}active{% endblock %}
@@ -72,7 +73,7 @@
 <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
     <span style="font-size:16px;">📅</span>
     <strong style="font-size:16px;color:var(--text-primary);">
-        {% load custom_filters %}{{ fecha_seleccionada|formatear_fecha_es }}
+        {{ fecha_seleccionada|formatear_fecha_es }}
     </strong>
     {% if fecha_seleccionada == hoy %}
     <span class="badge badge-confirmado">Hoy</span>
@@ -171,6 +172,16 @@
                 {% endif %}
             </div>
             {% endif %}
+            {% if turno.pago_registrado %}
+                {% if es_recepcion or pagos_visibles_profesional %}
+                <div style="margin-top:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                    <span class="badge" style="background:#ecfdf5;color:#047857;border:1px solid #a7f3d0;">
+                        💵 {{ turno.pago_texto }}
+                    </span>
+                    <span style="font-size:10px;color:var(--text-secondary);">Registro interno</span>
+                </div>
+                {% endif %}
+            {% endif %}
         </div>
 
         <!-- ACCIONES DE ESTADO -->
@@ -200,6 +211,12 @@
                 {% csrf_token %}
                 <button type="submit" class="btn btn-sm btn-outline">Ausente</button>
             </form>
+            {% endif %}
+
+            {% if turno.estado != 'cancelado' and turno.estado != 'ausente' %}
+            <a href="{% url 'turnos:registrar_pago' turno.pk %}" class="btn btn-sm {% if turno.pago_registrado %}btn-outline{% else %}btn-success{% endif %}">
+                {% if turno.pago_registrado %}✏️ Corregir pago{% else %}💵 Registrar pago{% endif %}
+            </a>
             {% endif %}
 
             <a href="{% url 'turnos:editar' turno.pk %}" class="btn btn-outline btn-sm">✏️</a>
