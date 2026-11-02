@@ -1,10 +1,17 @@
 from decimal import Decimal, InvalidOperation
 
 from django import forms
+from django.utils import timezone
 
 from historias.models import VALIDADORES_ADJUNTO_HISTORIA
 
-from .models import FormaPago, Turno
+from .models import (
+    FormaPago,
+    Plazo,
+    SolicitudTurno,
+    Turno,
+    calcular_fecha_sugerida,
+)
 
 
 class MultipleFileInput(forms.FileInput):
@@ -67,6 +74,84 @@ class TurnoForm(forms.ModelForm):
             # Sin restricciones de horario: se puede agendar cualquier día y hora
             pass
         return fecha_hora
+
+
+class SolicitudTurnoForm(forms.ModelForm):
+    """Formulario del profesional para pedir el próximo turno de un paciente."""
+
+    fecha_exacta = forms.DateField(
+        required=False,
+        label='Fecha exacta',
+        widget=forms.DateInput(attrs={'type': 'date'}),
+    )
+
+    class Meta:
+        model = SolicitudTurno
+        fields = ['plazo', 'nota']
+        widgets = {
+            'nota': forms.Textarea(
+                attrs={
+                    'rows': 3,
+                    'placeholder': 'Ej.: Prefiere turnos por la mañana.',
+                }
+            ),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['plazo'].required = True
+        if (
+            not self.is_bound
+            and self.instance
+            and self.instance.pk
+            and self.instance.plazo == Plazo.FECHA_EXACTA
+        ):
+            self.initial['fecha_exacta'] = self.instance.fecha_sugerida
+
+    def clean(self):
+        data = super().clean()
+        plazo = data.get('plazo')
+        fecha_exacta = data.get('fecha_exacta')
+
+        if plazo == Plazo.FECHA_EXACTA:
+            if not fecha_exacta:
+                self.add_error(
+                    'fecha_exacta',
+                    'Elegí la fecha exacta del turno.',
+                )
+            elif fecha_exacta < timezone.localdate():
+                self.add_error(
+                    'fecha_exacta',
+                    'La fecha exacta no puede ser anterior a hoy.',
+                )
+
+        return data
+
+    def save(self, commit=True):
+        solicitud = super().save(commit=False)
+        solicitud.fecha_sugerida = calcular_fecha_sugerida(
+            solicitud.plazo,
+            self.cleaned_data.get('fecha_exacta'),
+        )
+        if commit:
+            solicitud.save()
+        return solicitud
+
+
+class DescartarSolicitudForm(forms.Form):
+    """Motivo opcional al descartar una solicitud de turno."""
+
+    motivo = forms.CharField(
+        required=False,
+        label='Motivo (opcional)',
+        max_length=500,
+        widget=forms.Textarea(
+            attrs={
+                'rows': 2,
+                'placeholder': 'Ej.: El paciente pidió otro profesional.',
+            }
+        ),
+    )
 
 
 class PagoTurnoForm(forms.ModelForm):

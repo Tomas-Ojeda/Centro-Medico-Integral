@@ -92,6 +92,66 @@
             </div>
         </div>
 
+        <!-- PRÓXIMO TURNO SOLICITADO (PROFESIONAL) -->
+        {% if es_profesional %}
+        <div class="card" style="margin-bottom:20px;">
+            <div class="card-header">
+                <span class="card-title" style="display:flex;align-items:center;gap:8px;">
+                    <span class="accent-text">📅</span> Próximo turno solicitado
+                </span>
+                <a href="{% url 'turnos:solicitar_turno' paciente.pk %}" class="btn btn-accent btn-sm">
+                    {% if solicitud_turno.estado == 'pendiente' %}✏️ Actualizar solicitud{% else %}📅 Solicitar próximo turno{% endif %}
+                </a>
+            </div>
+
+            {% if solicitud_turno %}
+                {% if solicitud_turno.estado == 'pendiente' %}
+                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                    <span class="badge badge-pendiente">Pendiente de agendar</span>
+                    {% if solicitud_turno.esta_vencida %}
+                    <span class="badge badge-cancelado">Fecha vencida</span>
+                    {% endif %}
+                    <span style="font-size:13px;color:var(--text-primary);">
+                        Fecha sugerida: <strong>{{ solicitud_turno.fecha_sugerida|date:"d/m/Y" }}</strong>
+                        <span style="color:var(--text-secondary);">({{ solicitud_turno.get_plazo_display }})</span>
+                    </span>
+                </div>
+                {% elif solicitud_turno.estado == 'agendada' %}
+                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                    <span class="badge badge-realizado">Agendada</span>
+                    <span style="font-size:13px;color:var(--text-primary);">
+                        {% if solicitud_turno.turno %}
+                        Turno para el <strong>{{ solicitud_turno.turno.fecha_hora|date:"d/m/Y H:i" }}</strong>
+                        {% else %}
+                        Agendada para el <strong>{{ solicitud_turno.fecha_sugerida|date:"d/m/Y" }}</strong>
+                        {% endif %}
+                    </span>
+                </div>
+                {% else %}
+                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                    <span class="badge badge-cancelado">Descartada</span>
+                    {% if solicitud_turno.motivo_resolucion %}
+                    <span style="font-size:13px;color:var(--text-secondary);">Motivo: {{ solicitud_turno.motivo_resolucion }}</span>
+                    {% endif %}
+                </div>
+                {% endif %}
+
+                {% if solicitud_turno.nota and solicitud_turno.estado == 'pendiente' %}
+                <div style="font-size:13px;color:var(--text-primary);margin-top:10px;padding:8px 10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;">
+                    📝 {{ solicitud_turno.nota|linebreaksbr }}
+                </div>
+                {% endif %}
+                <div style="font-size:11px;color:var(--text-secondary);margin-top:8px;">
+                    Solicitada el {{ solicitud_turno.creado|date:"d/m/Y H:i" }}
+                </div>
+            {% else %}
+                <p style="font-size:13px;color:var(--text-secondary);margin:0;">
+                    No hay una solicitud de próximo turno para este paciente.
+                </p>
+            {% endif %}
+        </div>
+        {% endif %}
+
         <!-- HISTORIA CLÍNICA ADJUNTA -->
         <div class="card" style="margin-bottom:20px;">
             <div class="card-header">

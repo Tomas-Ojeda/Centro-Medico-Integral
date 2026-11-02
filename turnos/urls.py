@@ -6,6 +6,17 @@ app_name = 'turnos'
 urlpatterns = [
     path('', views.TurnoAgendaView.as_view(), name='agenda'),
     path('nuevo/', views.TurnoCreateView.as_view(), name='crear'),
+    path('por-agendar/', views.TurnosPorAgendarView.as_view(), name='por_agendar'),
+    path(
+        'solicitudes/paciente/<int:paciente_pk>/nueva/',
+        views.SolicitudTurnoCreateView.as_view(),
+        name='solicitar_turno',
+    ),
+    path(
+        'solicitudes/<int:pk>/descartar/',
+        views.DescartarSolicitudView.as_view(),
+        name='descartar_solicitud',
+    ),
     path('exportar/', views.ExportarAgendaCSVView.as_view(), name='exportar_csv'),
     path('buscar-pacientes/', views.BuscarPacientesView.as_view(), name='buscar_pacientes'),
     path('buscar-profesionales/', views.BuscarProfesionalesView.as_view(), name='buscar_profesionales'),

@@ -9,6 +9,13 @@
     <div class="card">
         <form method="post" enctype="multipart/form-data" novalidate>
             {% csrf_token %}
+            {% if solicitud %}
+            <input type="hidden" name="solicitud" value="{{ solicitud.pk }}">
+            <div class="alert alert-success" style="margin-bottom:16px;">
+                Agendando la solicitud de próximo turno del {{ solicitud.fecha_sugerida|date:"d/m/Y" }}.
+                Al guardar, la solicitud se cierra automáticamente.
+            </div>
+            {% endif %}
             {% if form.non_field_errors %}
             <ul class="errorlist">{% for e in form.non_field_errors %}<li>{{ e }}</li>{% endfor %}</ul>
             {% endif %}
@@ -17,6 +24,7 @@
                     <label>Paciente *</label>
                     <div class="autocomplete-container">
                         <input type="text" id="paciente-search" placeholder="Buscar paciente por nombre o DNI..." autocomplete="off"
+                               value="{% if paciente_inicial %}{{ paciente_inicial.nombre_completo }}{% endif %}"
                                style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--input-bg);color:var(--text-primary);">
                         <div class="autocomplete-list" id="paciente-results"></div>
                     </div>
@@ -27,6 +35,7 @@
                     <label>Profesional *</label>
                     <div class="autocomplete-container">
                         <input type="text" id="profesional-search" placeholder="Buscar profesional por nombre o especialidad..." autocomplete="off"
+                               value="{% if profesional_inicial %}{{ profesional_inicial.nombre_completo }}{% endif %}"
                                style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--input-bg);color:var(--text-primary);">
                         <div class="autocomplete-list" id="profesional-results"></div>
                     </div>
@@ -94,16 +103,14 @@
     let selectedPaciente = null;
 
     // Si hay un valor inicial (edición), cargar el nombre
-    if (hiddenInput.value) {
-        fetch(`/turnos/buscar-pacientes/?q=${hiddenInput.value}`)
+    if (hiddenInput.value && !searchInput.value.trim()) {
+        fetch('/turnos/buscar-pacientes/?q=')
             .then(r => r.json())
             .then(data => {
-                if (data.results.length > 0) {
-                    const p = data.results.find(x => x.id == hiddenInput.value);
-                    if (p) {
-                        searchInput.value = p.nombre_completo;
-                        selectedPaciente = p;
-                    }
+                const p = data.results.find(x => x.id == hiddenInput.value);
+                if (p) {
+                    searchInput.value = p.nombre_completo;
+                    selectedPaciente = p;
                 }
             });
     }
@@ -173,16 +180,14 @@
     let selectedProfesional = null;
 
     // Si hay un valor inicial (edición), cargar el nombre
-    if (hiddenInput.value) {
-        fetch(`/turnos/buscar-profesionales/?q=${hiddenInput.value}`)
+    if (hiddenInput.value && !searchInput.value.trim()) {
+        fetch('/turnos/buscar-profesionales/?q=')
             .then(r => r.json())
             .then(data => {
-                if (data.results.length > 0) {
-                    const p = data.results.find(x => x.id == hiddenInput.value);
-                    if (p) {
-                        searchInput.value = p.nombre_completo;
-                        selectedProfesional = p;
-                    }
+                const p = data.results.find(x => x.id == hiddenInput.value);
+                if (p) {
+                    searchInput.value = p.nombre_completo;
+                    selectedProfesional = p;
                 }
             });
     }

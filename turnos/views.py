@@ -4,15 +4,25 @@ from django.contrib import messages
 from django.urls import reverse, reverse_lazy
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views import View
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.utils import timezone
 from django.db import transaction
 from django.db.models import Count, Q
 from django.http import HttpResponse, JsonResponse
-from datetime import date, timedelta
+from datetime import date, datetime, time, timedelta
 import csv
-from .models import Turno, EstadoTurno
-from .forms import PagoTurnoForm, TurnoForm
+from .models import (
+    EstadoSolicitud,
+    EstadoTurno,
+    SolicitudTurno,
+    Turno,
+)
+from .forms import (
+    DescartarSolicitudForm,
+    PagoTurnoForm,
+    SolicitudTurnoForm,
+    TurnoForm,
+)
 from .utils import texto_pago
 from historias.models import AdjuntoHistoria
 from profesionales.models import Profesional
@@ -317,21 +327,98 @@ class TurnoCreateView(SoloRecepcionMixin, LoginRequiredMixin, AuditoriaMixin, Cr
     accion = 'crear'
     modelo = 'Turno'
 
+    def get_solicitud(self):
+        """Solicitud de origen, si el turno se agenda desde la cola."""
+        if not hasattr(self, '_solicitud'):
+            solicitud_id = (
+                self.request.POST.get('solicitud')
+                or self.request.GET.get('solicitud')
+            )
+            self._solicitud = None
+            if solicitud_id:
+                self._solicitud = get_object_or_404(
+                    SolicitudTurno.objects.select_related(
+                        'paciente', 'profesional'
+                    ),
+                    pk=solicitud_id,
+                )
+        return self._solicitud
+
+    def solicitud_pendiente(self):
+        solicitud = self.get_solicitud()
+        if solicitud and solicitud.estado == EstadoSolicitud.PENDIENTE:
+            return solicitud
+        return None
+
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx['titulo'] = 'Nuevo Turno'
+        ctx['solicitud'] = self.solicitud_pendiente()
+
+        form = ctx.get('form')
+        paciente_id = form['paciente'].value() if form else None
+        profesional_id = form['profesional'].value() if form else None
+        ctx['paciente_inicial'] = (
+            Paciente.objects.filter(pk=paciente_id).first()
+            if paciente_id else None
+        )
+        ctx['profesional_inicial'] = (
+            Profesional.objects.filter(pk=profesional_id).first()
+            if profesional_id else None
+        )
         return ctx
 
     def get_initial(self):
         initial = super().get_initial()
+        solicitud = self.solicitud_pendiente()
+
+        if solicitud:
+            initial['paciente'] = solicitud.paciente_id
+            initial['profesional'] = solicitud.profesional_id
+            initial['fecha_hora'] = datetime.combine(
+                solicitud.fecha_sugerida,
+                time(9, 0),
+            )
+            return initial
+
         paciente_id = self.request.GET.get('paciente')
         if paciente_id:
             initial['paciente'] = paciente_id
+
+        profesional_id = self.request.GET.get('profesional')
+        if profesional_id:
+            initial['profesional'] = profesional_id
+
+        fecha_sugerida = self.request.GET.get('fecha_sugerida')
+        if fecha_sugerida:
+            try:
+                fecha = datetime.strptime(
+                    fecha_sugerida, '%Y-%m-%d'
+                ).date()
+            except ValueError:
+                fecha = None
+            if fecha:
+                initial['fecha_hora'] = datetime.combine(fecha, time(9, 0))
+
         return initial
 
     def form_valid(self, form):
+        solicitud = self.solicitud_pendiente()
+
+        if solicitud and (
+            solicitud.paciente_id != form.cleaned_data['paciente'].pk
+            or solicitud.profesional_id != form.cleaned_data['profesional'].pk
+        ):
+            form.add_error(
+                None,
+                'La solicitud no corresponde al paciente y profesional '
+                'seleccionados.',
+            )
+            return self.form_invalid(form)
+
         try:
             with transaction.atomic():
+                self._solicitud_agendada = bool(solicitud)
                 response = super().form_valid(form)
                 for archivo in form.cleaned_data.get('adjuntos') or []:
                     AdjuntoHistoria.objects.create(
@@ -341,10 +428,47 @@ class TurnoCreateView(SoloRecepcionMixin, LoginRequiredMixin, AuditoriaMixin, Cr
                         subido_por=self.request.user,
                     )
                 self.registrar_acceso(self.request, form.instance)
+
+                if solicitud:
+                    solicitud.estado = EstadoSolicitud.AGENDADA
+                    solicitud.turno = form.instance
+                    solicitud.resuelto_en = timezone.now()
+                    solicitud.resuelto_por = self.request.user
+                    solicitud.save(update_fields=[
+                        'estado',
+                        'turno',
+                        'resuelto_en',
+                        'resuelto_por',
+                    ])
+                    self._solicitud_agendada = True
+                    fecha = timezone.localtime(
+                        form.instance.fecha_hora
+                    ).strftime('%d/%m/%Y %H:%M')
+                    self.registrar_acceso(
+                        self.request,
+                        solicitud,
+                        accion='editar',
+                        detalle=(
+                            f'Turno #{form.instance.pk} agendado para el '
+                            f'{fecha}.'
+                        ),
+                        modelo='SolicitudTurno',
+                    )
         except ValidationError as exc:
             form.add_error('adjuntos', exc)
             return self.form_invalid(form)
+
+        if solicitud:
+            messages.success(
+                self.request,
+                'Turno agendado y solicitud cerrada.',
+            )
         return response
+
+    def get_success_url(self):
+        if getattr(self, '_solicitud_agendada', False):
+            return reverse('turnos:por_agendar')
+        return reverse('turnos:agenda')
 
 
 class TurnoUpdateView(SoloRecepcionMixin, LoginRequiredMixin, AuditoriaMixin, UpdateView):
@@ -358,6 +482,8 @@ class TurnoUpdateView(SoloRecepcionMixin, LoginRequiredMixin, AuditoriaMixin, Up
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx['titulo'] = 'Editar Turno'
+        ctx['paciente_inicial'] = self.object.paciente
+        ctx['profesional_inicial'] = self.object.profesional
         ctx['adjuntos_turno'] = self.object.adjuntos_historia.select_related(
             'subido_por'
         ).order_by('-creado')
@@ -511,3 +637,196 @@ class RegistrarPagoView(SoloRecepcionMixin, LoginRequiredMixin, AuditoriaMixin, 
             messages.success(request, 'Pago registrado correctamente.')
 
         return self.volver_a_la_agenda(pago)
+
+
+class SolicitudTurnoCreateView(
+    RecepcionOProfesionalMixin,
+    LoginRequiredMixin,
+    AuditoriaMixin,
+    View,
+):
+    """El profesional pide el próximo turno de un paciente que atiende."""
+
+    template_name = 'turnos/solicitud_formulario.html'
+    accion = 'crear'
+    modelo = 'SolicitudTurno'
+
+    def get_profesional(self):
+        if self.profesional is None:
+            raise PermissionDenied(
+                'Solo los profesionales pueden solicitar próximos turnos.'
+            )
+        return self.profesional
+
+    def get_paciente(self):
+        return get_object_or_404(
+            Paciente.objects.atendidos_por(self.get_profesional()),
+            pk=self.kwargs['paciente_pk'],
+        )
+
+    def get_solicitud_pendiente(self, paciente):
+        return SolicitudTurno.objects.filter(
+            paciente=paciente,
+            profesional=self.get_profesional(),
+            estado=EstadoSolicitud.PENDIENTE,
+        ).first()
+
+    def contexto(self, paciente, form, solicitud):
+        return {
+            'paciente': paciente,
+            'profesional': self.get_profesional(),
+            'form': form,
+            'solicitud': solicitud,
+            'titulo': (
+                'Actualizar próximo turno'
+                if solicitud else 'Solicitar próximo turno'
+            ),
+        }
+
+    def get(self, request, paciente_pk):
+        paciente = self.get_paciente()
+        solicitud = self.get_solicitud_pendiente(paciente)
+        form = SolicitudTurnoForm(instance=solicitud)
+        return render(
+            request,
+            self.template_name,
+            self.contexto(paciente, form, solicitud),
+        )
+
+    def post(self, request, paciente_pk):
+        paciente = self.get_paciente()
+        profesional = self.get_profesional()
+        solicitud_existente = self.get_solicitud_pendiente(paciente)
+        form = SolicitudTurnoForm(
+            request.POST,
+            instance=solicitud_existente,
+        )
+
+        if not form.is_valid():
+            return render(
+                request,
+                self.template_name,
+                self.contexto(paciente, form, solicitud_existente),
+            )
+
+        datos = form.save(commit=False)
+        solicitud, creada = SolicitudTurno.objects.update_or_create(
+            paciente=paciente,
+            profesional=profesional,
+            estado=EstadoSolicitud.PENDIENTE,
+            defaults={
+                'solicitado_por': request.user,
+                'plazo': datos.plazo,
+                'fecha_sugerida': datos.fecha_sugerida,
+                'nota': datos.nota,
+                'turno': None,
+                'resuelto_en': None,
+                'resuelto_por': None,
+                'motivo_resolucion': '',
+            },
+        )
+
+        self.registrar_acceso(
+            request,
+            solicitud,
+            accion='crear' if creada else 'editar',
+            detalle=(
+                f'Solicitud de próximo turno para el '
+                f'{solicitud.fecha_sugerida:%d/%m/%Y} '
+                f'({solicitud.get_plazo_display()}).'
+            ),
+        )
+
+        if creada:
+            messages.success(
+                request,
+                'Solicitud enviada. Recepción la verá en '
+                '"Turnos por agendar".',
+            )
+        else:
+            messages.success(request, 'Solicitud actualizada.')
+        return redirect('pacientes:detalle', pk=paciente.pk)
+
+
+class TurnosPorAgendarView(
+    SoloRecepcionMixin,
+    LoginRequiredMixin,
+    ListView,
+):
+    """Cola de solicitudes pendientes para Recepción y Administración."""
+
+    model = SolicitudTurno
+    template_name = 'turnos/por_agendar.html'
+    context_object_name = 'solicitudes'
+
+    def get_queryset(self):
+        return SolicitudTurno.objects.filter(
+            estado=EstadoSolicitud.PENDIENTE
+        ).select_related(
+            'paciente',
+            'profesional',
+            'solicitado_por',
+        ).order_by('fecha_sugerida', 'creado')
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        solicitudes = list(ctx['solicitudes'])
+        ctx['solicitudes'] = solicitudes
+        ctx['total_pendientes'] = len(solicitudes)
+        ctx['total_vencidas'] = sum(
+            1 for solicitud in solicitudes if solicitud.esta_vencida
+        )
+        ctx['hoy'] = timezone.localdate()
+        return ctx
+
+
+class DescartarSolicitudView(
+    SoloRecepcionMixin,
+    LoginRequiredMixin,
+    AuditoriaMixin,
+    View,
+):
+    """Descarta una solicitud pendiente con motivo opcional."""
+
+    accion = 'editar'
+    modelo = 'SolicitudTurno'
+
+    def post(self, request, pk):
+        solicitud = get_object_or_404(
+            SolicitudTurno.objects.select_related('paciente', 'profesional'),
+            pk=pk,
+        )
+
+        if solicitud.estado != EstadoSolicitud.PENDIENTE:
+            messages.warning(
+                request,
+                'La solicitud ya había sido resuelta.',
+            )
+            return redirect('turnos:por_agendar')
+
+        form = DescartarSolicitudForm(request.POST)
+        motivo = ''
+        if form.is_valid():
+            motivo = (form.cleaned_data.get('motivo') or '').strip()
+
+        solicitud.estado = EstadoSolicitud.DESCARTADA
+        solicitud.resuelto_en = timezone.now()
+        solicitud.resuelto_por = request.user
+        solicitud.motivo_resolucion = motivo
+        solicitud.save(update_fields=[
+            'estado',
+            'resuelto_en',
+            'resuelto_por',
+            'motivo_resolucion',
+        ])
+
+        self.registrar_acceso(
+            request,
+            solicitud,
+            detalle=(
+                'Solicitud descartada. Motivo: '
+                f'{motivo or "sin motivo indicado"}.'
+            ),
+        )
+        messages.success(request, 'Solicitud descartada.')
+        return redirect('turnos:por_agendar')

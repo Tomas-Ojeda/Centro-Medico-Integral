@@ -13,6 +13,7 @@ from .models import Paciente
 from .forms import PacienteForm
 from historias.models import Consulta, ValorCampoAdicional
 from historias.permisos import puede_crear_notas, puede_ver_notas
+from turnos.models import SolicitudTurno
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
@@ -88,6 +89,14 @@ class PacienteDetailView(RecepcionOProfesionalMixin, LoginRequiredMixin, Auditor
             'subido_por', 'turno'
         ).order_by('-creado')
         ctx['pacientes_sidebar'] = self.get_queryset()[:20]
+
+        if self.profesional:
+            ctx['solicitud_turno'] = SolicitudTurno.objects.filter(
+                paciente=self.object,
+                profesional=self.profesional,
+            ).select_related('turno').order_by('-creado').first()
+        else:
+            ctx['solicitud_turno'] = None
 
         if puede_ver_notas(self.request.user):
             notas = self.object.notas.select_related(

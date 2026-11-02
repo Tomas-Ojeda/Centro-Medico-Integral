@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ titulo }} — {{ NOMBRE_CENTRO }}{% endblock %}
+{% block nav_pacientes %}active{% endblock %}
+{% block page_title %}{{ titulo }}{% endblock %}
+{% block page_subtitle %}{{ paciente.apellido }}, {{ paciente.nombre }}{% endblock %}
+
+{% block content %}
+<div style="max-width:640px;">
+    <div class="card" style="margin-bottom:16px;padding:16px 20px;">
+        <div style="display:flex;align-items:center;gap:12px;">
+            <div class="patient-avatar">{{ paciente.iniciales }}</div>
+            <div>
+                <div style="font-size:15px;font-weight:600;">{{ paciente.apellido }}, {{ paciente.nombre }}</div>
+                <div style="font-size:12px;color:var(--text-secondary);">
+                    DNI {{ paciente.dni }} · Profesional: {{ profesional.apellido }}, {{ profesional.nombre }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if solicitud %}
+    <div class="alert alert-error" style="background:#fffbeb;color:#b45309;border-color:#fde68a;">
+        Ya tenés una solicitud pendiente para este paciente. Si guardás, se actualiza en lugar de crear otra.
+    </div>
+    {% endif %}
+
+    <div class="card">
+        <form method="post" novalidate>
+            {% csrf_token %}
+            {% if form.non_field_errors %}
+            <ul class="errorlist">{% for e in form.non_field_errors %}<li>{{ e }}</li>{% endfor %}</ul>
+            {% endif %}
+
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="{{ form.plazo.id_for_label }}">Plazo *</label>
+                    {{ form.plazo }}
+                    {% if form.plazo.errors %}<ul class="errorlist">{% for e in form.plazo.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+                </div>
+
+                <div class="form-group" id="grupo-fecha-exacta" {% if form.plazo.value != 'fecha_exacta' %}style="display:none;"{% endif %}>
+                    <label for="{{ form.fecha_exacta.id_for_label }}">Fecha exacta *</label>
+                    {{ form.fecha_exacta }}
+                    {% if form.fecha_exacta.errors %}<ul class="errorlist">{% for e in form.fecha_exacta.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+                </div>
+
+                <div class="form-group full">
+                    <label for="{{ form.nota.id_for_label }}">Nota (opcional)</label>
+                    {{ form.nota }}
+                    <div style="font-size:11px;color:var(--text-secondary);">
+                        Contale a recepción cualquier preferencia de día u horario.
+                    </div>
+                    {% if form.nota.errors %}<ul class="errorlist">{% for e in form.nota.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <a href="{% url 'pacientes:detalle' paciente.pk %}" class="btn btn-outline">Cancelar</a>
+                <button type="submit" class="btn btn-primary">
+                    {% if solicitud %}Actualizar solicitud{% else %}Enviar solicitud{% endif %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    const plazo = document.getElementById('id_plazo');
+    const grupo = document.getElementById('grupo-fecha-exacta');
+    if (!plazo || !grupo) return;
+
+    function actualizar() {
+        grupo.style.display = plazo.value === 'fecha_exacta' ? '' : 'none';
+    }
+
+    plazo.addEventListener('change', actualizar);
+    actualizar();
+})();
+</script>
+{% endblock %}

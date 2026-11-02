@@ -13,6 +13,9 @@
         <a href="?vista=calendario" class="btn btn-sm" style="border-radius:0;{% if vista == 'calendario' %}background:var(--sidebar-bg);color:#fff;{% endif %}">📅 Calendario</a>
     </div>
     {% if es_recepcion %}
+    <a href="{% url 'turnos:por_agendar' %}" class="btn btn-outline" title="Solicitudes de próximo turno pendientes">
+        📋 Por agendar{% if solicitudes_pendientes_count %} ({{ solicitudes_pendientes_count }}){% endif %}
+    </a>
     <a href="{% url 'turnos:exportar_csv' %}?fecha={{ fecha_str }}" class="btn btn-outline" title="Exportar agenda del día a CSV">⬇ Exportar CSV</a>
     <a href="{% url 'turnos:crear' %}" class="btn btn-primary">+ Nuevo Turno</a>
     {% else %}
