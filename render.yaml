@@ -1,13 +1,37 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# ARCHIVO DE REFERENCIA — NO ES LA FUENTE DE VERDAD
+#
+# El servicio real se administra desde el dashboard de Render. Este archivo
+# documenta la configuración esperada y puede usarse para recrear el entorno,
+# pero antes de sincronizar un Blueprint compará planes, disco y variables
+# con lo que muestra el dashboard.
+#
+# Configuración real:
+#   - Web Service con runtime Docker (Dockerfile + docker/entrypoint.sh).
+#   - Plan pago equivalente a Starter: 0.5 CPU / 512 MB RAM, 1 instancia.
+#   - Persistent Disk de 1 GB montado en /var/data/media.
+#   - MEDIA_ROOT=/var/data/media.
+#   - PostgreSQL pago de 0.1 CPU / 256 MB RAM, 1 GB de disco.
+#
+# El entrypoint del contenedor ejecuta, en cada arranque:
+#   python manage.py migrate --noinput
+#   python manage.py collectstatic --noinput --clear
+# y después inicia Gunicorn con 3 workers.
+# ─────────────────────────────────────────────────────────────────────────────
+
 services:
   - type: web
     name: centro-medico-integral
-    runtime: python
-    plan: free
-    buildCommand: pip install -r requirements.txt && python manage.py collectstatic --noinput && python manage.py migrate
-    startCommand: gunicorn consultorio_salto.wsgi:application --bind 0.0.0.0:$PORT --timeout 120
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: 0.5c-512mb   # Plan pago equivalente a Starter (0.5 CPU / 512 MB)
+    numInstances: 1    # Un servicio con disco persistente no se puede escalar
     envVars:
+      - key: DJANGO_SETTINGS_MODULE
+        value: consultorio_salto.settings_prod
       - key: DJANGO_SECRET_KEY
-        generateValue: true
+        sync: false
       - key: DJANGO_DEBUG
         value: "False"
       - key: DJANGO_ALLOWED_HOSTS
@@ -16,23 +40,25 @@ services:
         fromDatabase:
           name: centro-medico-db
           property: connectionString
-      - key: PYTHON_VERSION
-        value: "3.12"
-      # Para usar un Persistent Disk, descomentar el bloque "disk" de abajo
-      # y también esta variable con la misma ruta de montaje.
-      # - key: MEDIA_ROOT
-      #   value: /var/data/media
-
-    # ─── Persistent Disk para archivos de historia clínica ─────────
-    # Requiere un plan pago de Render. Descomentar junto con MEDIA_ROOT.
-    # Sin disco, los archivos se pierden al redeployar (el filesystem es efímero).
-    # disk:
-    #   name: centro-medico-media
-    #   mountPath: /var/data/media
-    #   sizeGB: 1
+      - key: MEDIA_ROOT
+        value: /var/data/media
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      # Opcionales (valores por defecto entre paréntesis):
+      # - key: ADMIN_URL
+      #   value: admin/
+      # - key: NOTAS_VISIBLES_PARA_RECEPCION
+      #   value: "True"
+      # - key: PAGOS_VISIBLES_PARA_PROFESIONAL
+      #   value: "False"
+    disk:
+      name: centro-medico-media
+      mountPath: /var/data/media
+      sizeGB: 1
 
 databases:
   - name: centro-medico-db
-    plan: free
     databaseName: centro_medico
     user: centro_medico_user
+    plan: 0.1c-256mb   # Plan pago de 0.1 CPU / 256 MB
+    diskSizeGB: 1

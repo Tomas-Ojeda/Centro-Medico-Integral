@@ -22,4 +22,9 @@ urlpatterns = [
         views.DerivacionCancelView.as_view(),
         name='cancelar',
     ),
+    path(
+        '<int:pk>/eliminar/',
+        views.DerivacionDeleteView.as_view(),
+        name='eliminar',
+    ),
 ]

@@ -19,6 +19,7 @@ Sistema de gestión de pacientes, historias clínicas, profesionales y turnos pa
 - **Auditoría de accesos** — registro de quién vio qué, cuándo y desde qué IP
 - **Bloqueo de fuerza bruta** (django-axes) — 5 intentos fallidos = 15 min de bloqueo
 - **Archivos adjuntos protegidos** — solo accesibles por usuarios autenticados
+- **Respaldo de adjuntos** — ZIP en streaming, solo para superusuarios
 - **Validación de archivos** — extensión, tipo MIME real y tamaño máximo (10 MB)
 - **Nombres aleatorios** para archivos subidos (UUID)
 
@@ -49,7 +50,7 @@ El sistema usa tres roles:
 
 | Rol | Cómo se asigna | Alcance |
 |-----|----------------|---------|
-| **Administrador** | Superusuario de Django | Acceso total, incluido `/admin` |
+| **Administrador** | Superusuario de Django | Acceso total, incluido `/admin` y eliminación de derivaciones |
 | **Recepción** | Grupo `Recepcion` | Pacientes, turnos, profesionales e historias |
 | **Profesional** | Grupo `Profesional` + vínculo con un `Profesional` | Solo sus pacientes, sus turnos y sus consultas |
 
@@ -108,34 +109,68 @@ Acceder en `http://localhost`
 
 ## Variables de entorno
 
-| Variable | Descripción |
-|----------|-------------|
-| `DJANGO_SECRET_KEY` | Clave secreta de Django (obligatoria) |
-| `DJANGO_DEBUG` | Modo debug (True/False) |
-| `DJANGO_ALLOWED_HOSTS` | Hosts permitidos (separados por coma) |
-| `ANTHROPIC_API_KEY` | API key de Anthropic (para importación con IA) |
-| `SESSION_COOKIE_SECURE` | Cookies seguras (True en producción) |
-| `CSRF_COOKIE_SECURE` | CSRF cookie segura (True en producción) |
-| `SECURE_SSL_REDIRECT` | Redirigir HTTP a HTTPS (True en producción) |
-| `SESSION_COOKIE_AGE` | Duración de sesión en segundos (default: 3600) |
-| `ADMIN_URL` | Ruta del admin (default: admin/) |
-| `MEDIA_ROOT` | Ruta de archivos subidos (default: `BASE_DIR/media`) |
-| `DB_NAME` | Nombre de la base de datos PostgreSQL |
-| `DB_USER` | Usuario de PostgreSQL |
-| `DB_PASSWORD` | Contraseña de PostgreSQL |
-| `PGADMIN_EMAIL` | Email de pgAdmin (solo desarrollo) |
-| `PGADMIN_PASSWORD` | Contraseña de pgAdmin (solo desarrollo) |
+| Variable | Obligatoria | Descripción |
+|----------|-------------|-------------|
+| `DJANGO_SECRET_KEY` | Sí | Clave secreta de Django |
+| `DJANGO_SETTINGS_MODULE` | Producción | `consultorio_salto.settings_prod` (el `Dockerfile` ya lo define) |
+| `DJANGO_DEBUG` | No | `False` en producción (default: `True`) |
+| `DJANGO_ALLOWED_HOSTS` | Sí | Hosts permitidos, separados por coma |
+| `DATABASE_URL` | Producción | Render la inyecta automáticamente. En local se usa SQLite |
+| `MEDIA_ROOT` | Producción | Ruta de los adjuntos. En Render: `/var/data/media` (default local: `BASE_DIR/media`) |
+| `ANTHROPIC_API_KEY` | Para IA | API key de Anthropic (importación de planillas) |
+| `SESSION_COOKIE_SECURE` | No | Cookies seguras (`True` en producción con HTTPS) |
+| `CSRF_COOKIE_SECURE` | No | CSRF cookie segura (`True` en producción con HTTPS) |
+| `SECURE_SSL_REDIRECT` | No | Redirigir HTTP a HTTPS (`True` en producción) |
+| `SESSION_COOKIE_AGE` | No | Duración de sesión en segundos (default: 3600) |
+| `ADMIN_URL` | No | Ruta del admin (default: `admin/`) |
+| `NOTAS_VISIBLES_PARA_RECEPCION` | No | `True`/`False` (default: `True`) |
+| `PAGOS_VISIBLES_PARA_PROFESIONAL` | No | `True`/`False` (default: `False`) |
+| `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST` | Solo Docker local | Conexión a PostgreSQL del `docker-compose.yml` |
+| `PGADMIN_EMAIL`, `PGADMIN_PASSWORD` | Solo desarrollo | Acceso a pgAdmin local |
 
 ## Despliegue en Render
 
-1. Crear servicio web en Render con el repositorio
-2. Configurar variables de entorno (ver tabla arriba)
-3. `DJANGO_SETTINGS_MODULE=consultorio_salto.settings_prod`
-4. Comando de inicio: `gunicorn consultorio_salto.wsgi:application --bind 0.0.0.0:$PORT --timeout 120`
-5. Para conservar los archivos adjuntos entre despliegues, montar un Persistent
-   Disk y definir `MEDIA_ROOT` con la ruta de montaje (por ejemplo,
-   `/var/data/media`). En `render.yaml` hay un bloque `disk` comentado con las
-   instrucciones.
+El servicio real es un **Web Service Docker** (no usa el runtime Python nativo):
+
+- **Runtime:** Docker, construido con `Dockerfile`; el arranque lo maneja
+  `docker/entrypoint.sh`.
+- **Plan:** Starter / 0.5 CPU / 512 MB RAM, **1 instancia**.
+- **Disco persistente:** 1 GB montado en `/var/data/media`.
+  `MEDIA_ROOT=/var/data/media`. No se guarda nada fuera de esa ruta.
+- **Base de datos:** PostgreSQL de Render (0.1 CPU / 256 MB RAM, 1 GB de disco).
+- **Migraciones:** en **cada arranque** el entrypoint ejecuta
+  `python manage.py migrate --noinput` y
+  `python manage.py collectstatic --noinput --clear` antes de iniciar Gunicorn
+  con 3 workers. No hay que correr migraciones a mano después de un deploy.
+- **Variables obligatorias:** `DJANGO_SECRET_KEY`, `DJANGO_DEBUG=False`,
+  `DJANGO_ALLOWED_HOSTS`, `DATABASE_URL` (la inyecta Render) y
+  `MEDIA_ROOT=/var/data/media`. `DJANGO_SETTINGS_MODULE` ya viene definida en
+  el `Dockerfile`.
+- `render.yaml` queda como **archivo de referencia**: la configuración vigente
+  se administra desde el dashboard. No sincronices el Blueprint sin comparar
+  antes planes, disco y variables.
+
+### Respaldo de adjuntos
+
+Los adjuntos de historia clínica viven en el disco persistente. Para descargar
+un respaldo completo:
+
+1. Ingresar como **superusuario**.
+2. Abrir `/admin-tools/respaldo-adjuntos/`.
+3. Se descarga `respaldo_adjuntos_AAAAMMDD_HHMMSS.zip` con todo el contenido de
+   `MEDIA_ROOT` (la carpeta `historias_clinicas/` y lo que haya dentro).
+4. Guardar el `.zip` fuera de Render (pendrive, disco externo o nube privada).
+
+La vista arma el ZIP en un archivo temporal y lo envía en streaming, así no
+carga los adjuntos en memoria. El temporal se escribe en `/tmp` del contenedor
+(disco efímero), no en el disco persistente. Cada descarga queda registrada en
+Auditoría con la acción `descargar` y el modelo `RespaldoAdjuntos`.
+
+El disco es de **1 GB**: verificá el espacio disponible antes de generar
+respaldos muy grandes. Para la base de datos, usá los backups automáticos del
+plan de Render si están disponibles y además descargá un dump periódico con
+`pg_dump` desde una máquina con acceso a la base. Guardá base y adjuntos juntos,
+con la misma fecha.
 
 ## Estructura del proyecto
 
@@ -151,6 +186,7 @@ centro_medico_v2/
 ├── turnos/                     # Agenda de turnos
 ├── historias/                  # Historias clínicas
 ├── auditoria/                  # Auditoría de accesos
+├── admin_tools/                # Herramientas de administración (respaldos)
 ├── docker/                     # Configuración Docker
 ├── templates/                  # Templates HTML
 ├── static/                     # Archivos estáticos

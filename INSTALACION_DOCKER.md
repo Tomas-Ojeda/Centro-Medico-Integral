@@ -123,7 +123,7 @@ Para que los recepcionistas puedan entrar desde sus casas sin exponer la PC a in
 
 ---
 
-## Backups automáticos
+## Backups automáticos (instalación local)
 
 Los backups se hacen automáticamente todos los días a las 2am.
 Se guardan en la carpeta `docker/backups/` de tu PC.
@@ -131,6 +131,72 @@ Los backups de más de 30 días se eliminan solos.
 
 **Recomendación:** copiá la carpeta `docker/backups/` a un pendrive o Google Drive
 una vez por semana como respaldo extra.
+
+---
+
+## Producción en Render (servicio Docker)
+
+El entorno real del centro corre en Render con un **Web Service Docker**
+(no usa el runtime Python nativo). Esta sección resume lo necesario para
+operarlo; la configuración vigente se administra desde el dashboard de Render.
+
+### Servicio y disco persistente
+
+- **Runtime:** Docker, con `Dockerfile` y `docker/entrypoint.sh`.
+- **Plan:** Starter / 0.5 CPU / 512 MB RAM, **1 instancia**.
+- **Disco persistente:** 1 GB montado en `/var/data/media`.
+- **`MEDIA_ROOT`:** `/var/data/media` (ahí viven únicamente los adjuntos de
+  historia clínica).
+- **Base de datos:** PostgreSQL de Render (0.1 CPU / 256 MB RAM, 1 GB de disco).
+
+No agregues más de una instancia ni otro disco: el servicio está pensado para
+una sola instancia con almacenamiento local.
+
+### Variables de entorno requeridas en Render
+
+| Variable | Valor / descripción |
+|----------|---------------------|
+| `DJANGO_SECRET_KEY` | Clave secreta de Django |
+| `DJANGO_SETTINGS_MODULE` | `consultorio_salto.settings_prod` (ya definida en el `Dockerfile`) |
+| `DJANGO_DEBUG` | `False` |
+| `DJANGO_ALLOWED_HOSTS` | `centro-medico-integral.onrender.com,localhost,127.0.0.1` |
+| `DATABASE_URL` | La inyecta Render desde la base PostgreSQL |
+| `MEDIA_ROOT` | `/var/data/media` |
+| `ANTHROPIC_API_KEY` | Opcional, para importación de planillas con IA |
+| `ADMIN_URL` | Opcional, default `admin/` |
+| `NOTAS_VISIBLES_PARA_RECEPCION` | Opcional, default `True` |
+| `PAGOS_VISIBLES_PARA_PROFESIONAL` | Opcional, default `False` |
+
+### Migraciones y arranque
+
+En **cada arranque** del contenedor, `docker/entrypoint.sh` ejecuta:
+
+```sh
+python manage.py migrate --noinput
+python manage.py collectstatic --noinput --clear
+```
+
+y después inicia Gunicorn con 3 workers. Por eso no hace falta correr
+migraciones a mano después de un deploy. Si una migración falla, el contenedor
+no arranca: revisá los logs del servicio en Render.
+
+### Rutina de respaldo en producción
+
+1. **Base de datos:** descargá un dump periódico con `pg_dump` desde una
+   máquina con acceso a la base, o usá los backups automáticos del plan de
+   Render si están disponibles. Guardá el dump fuera de Render.
+2. **Adjuntos:** ingresá como **superusuario** a
+   `/admin-tools/respaldo-adjuntos/`. Se descarga un `.zip` con todo el
+   contenido de `MEDIA_ROOT`. La vista usa un archivo temporal en `/tmp`
+   (disco efímero del contenedor) y streaming, así no carga los archivos en
+   memoria, y registra cada descarga en Auditoría.
+3. Guardá base y adjuntos juntos, con la misma fecha, en un pendrive, disco
+   externo o nube privada. El disco de Render es de **1 GB**: controlá el
+   espacio antes de generar respaldos grandes.
+
+`render.yaml` queda como **archivo de referencia**. Si alguna vez sincronizás
+un Blueprint, compará antes los planes, el disco y las variables con el
+dashboard.
 
 ---
 

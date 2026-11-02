@@ -370,6 +370,81 @@ class DerivacionCancelView(
         return redirect('derivaciones:detalle', pk=derivacion.pk)
 
 
+class DerivacionDeleteView(
+    LoginRequiredMixin,
+    AuditoriaMixin,
+    View,
+):
+    """Elimina definitivamente una derivación. Solo para administradores.
+
+    Si la derivación tenía una solicitud de turno pendiente y no está
+    compartida con otra derivación, la solicitud se descarta para que no quede
+    en la cola de "Turnos por agendar".
+    """
+
+    accion = 'borrar'
+    modelo = 'Derivacion'
+
+    def post(self, request, pk):
+        if not es_admin(request.user):
+            raise PermissionDenied(
+                'Solo el administrador puede eliminar derivaciones.'
+            )
+
+        derivacion = get_object_or_404(
+            Derivacion.objects.select_related(
+                'paciente',
+                'profesional_origen',
+                'profesional_destino',
+                'solicitud_turno',
+            ),
+            pk=pk,
+        )
+        solicitud = derivacion.solicitud_turno
+
+        with transaction.atomic():
+            self.registrar_acceso(
+                request,
+                derivacion,
+                accion='borrar',
+                detalle=(
+                    f'Derivación de {derivacion.paciente} eliminada por '
+                    f'{request.user.username}.'
+                ),
+            )
+            derivacion.delete()
+
+            if (
+                solicitud is not None
+                and solicitud.estado == EstadoSolicitud.PENDIENTE
+                and not Derivacion.objects.filter(
+                    solicitud_turno=solicitud
+                ).exists()
+            ):
+                solicitud.estado = EstadoSolicitud.DESCARTADA
+                solicitud.resuelto_en = timezone.now()
+                solicitud.resuelto_por = request.user
+                solicitud.motivo_resolucion = 'Derivación eliminada.'
+                solicitud.save(update_fields=[
+                    'estado',
+                    'resuelto_en',
+                    'resuelto_por',
+                    'motivo_resolucion',
+                ])
+                self.registrar_acceso(
+                    request,
+                    solicitud,
+                    accion='editar',
+                    detalle=(
+                        'Solicitud descartada por eliminación de derivación.'
+                    ),
+                    modelo='SolicitudTurno',
+                )
+
+        messages.success(request, 'Derivación eliminada.')
+        return redirect('derivaciones:lista')
+
+
 class BuscarProfesionalesDerivacionView(
     RecepcionOProfesionalMixin,
     LoginRequiredMixin,

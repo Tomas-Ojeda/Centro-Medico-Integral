@@ -844,6 +844,11 @@
             <span class="nav-icon"><i class="fas fa-user-md"></i></span> Profesionales
         </a>
         {% endif %}
+        {% if user.is_superuser %}
+        <a href="{% url 'admin_tools:respaldo_adjuntos' %}" class="nav-item">
+            <span class="nav-icon"><i class="fas fa-download"></i></span> Respaldo de adjuntos
+        </a>
+        {% endif %}
     </nav>
     {% endif %}
 

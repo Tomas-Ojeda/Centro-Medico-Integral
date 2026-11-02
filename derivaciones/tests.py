@@ -780,6 +780,120 @@ class BandejaYContadoresTests(BaseDerivacionesTests):
         self.assertEqual(response.status_code, 302)
 
 
+class EliminacionDerivacionTests(BaseDerivacionesTests):
+    def test_admin_elimina_derivacion_y_descarta_solicitud(self):
+        derivacion = self.crear_derivacion(motivo='Texto de prueba.')
+        solicitud = derivacion.solicitud_turno
+        self.login(self.admin)
+
+        response = self.client.post(
+            reverse('derivaciones:eliminar', args=[derivacion.pk]),
+        )
+
+        self.assertRedirects(response, reverse('derivaciones:lista'))
+        self.assertFalse(
+            Derivacion.objects.filter(pk=derivacion.pk).exists()
+        )
+        solicitud.refresh_from_db()
+        self.assertEqual(solicitud.estado, EstadoSolicitud.DESCARTADA)
+        self.assertEqual(solicitud.motivo_resolucion, 'Derivación eliminada.')
+        self.assertTrue(
+            LogAcceso.objects.filter(
+                usuario=self.admin,
+                accion='borrar',
+                modelo='Derivacion',
+                objeto_id=derivacion.pk,
+            ).exists()
+        )
+
+    def test_solo_el_admin_puede_eliminar(self):
+        derivacion = self.crear_derivacion()
+
+        for usuario in (
+            self.user_a,
+            self.user_b,
+            self.user_c,
+            self.recepcion,
+        ):
+            with self.subTest(usuario=usuario.username):
+                self.login(usuario)
+                response = self.client.post(
+                    reverse('derivaciones:eliminar', args=[derivacion.pk]),
+                )
+                self.assertEqual(response.status_code, 403)
+
+        self.assertTrue(
+            Derivacion.objects.filter(pk=derivacion.pk).exists()
+        )
+
+    def test_admin_puede_eliminar_derivacion_vista(self):
+        derivacion = self.crear_derivacion(
+            estado=EstadoDerivacion.VISTA,
+            crear_solicitud=False,
+        )
+        self.login(self.admin)
+
+        response = self.client.post(
+            reverse('derivaciones:eliminar', args=[derivacion.pk]),
+        )
+
+        self.assertRedirects(response, reverse('derivaciones:lista'))
+        self.assertFalse(
+            Derivacion.objects.filter(pk=derivacion.pk).exists()
+        )
+
+    def test_solicitud_compartida_no_se_descarta_hasta_eliminar_la_ultima(self):
+        primera = self.crear_derivacion(motivo='Primera.')
+        segunda = self.crear_derivacion(motivo='Segunda.')
+        solicitud = primera.solicitud_turno
+        self.assertEqual(segunda.solicitud_turno, solicitud)
+
+        self.login(self.admin)
+        self.client.post(
+            reverse('derivaciones:eliminar', args=[primera.pk]),
+        )
+        solicitud.refresh_from_db()
+        self.assertEqual(solicitud.estado, EstadoSolicitud.PENDIENTE)
+
+        self.client.post(
+            reverse('derivaciones:eliminar', args=[segunda.pk]),
+        )
+        solicitud.refresh_from_db()
+        self.assertEqual(solicitud.estado, EstadoSolicitud.DESCARTADA)
+
+    def test_admin_ve_botones_de_eliminar_en_lista_y_detalle(self):
+        derivacion = self.crear_derivacion()
+        self.login(self.admin)
+
+        detalle = self.client.get(
+            reverse('derivaciones:detalle', args=[derivacion.pk])
+        )
+        self.assertContains(detalle, 'Eliminar derivación')
+        self.assertContains(
+            detalle,
+            reverse('derivaciones:eliminar', args=[derivacion.pk]),
+        )
+
+        lista = self.client.get(reverse('derivaciones:lista'))
+        self.assertContains(lista, 'Confirmar eliminación')
+        self.assertContains(
+            lista,
+            reverse('derivaciones:eliminar', args=[derivacion.pk]),
+        )
+
+    def test_no_admin_no_ve_boton_de_eliminar(self):
+        derivacion = self.crear_derivacion()
+        self.login(self.recepcion)
+
+        detalle = self.client.get(
+            reverse('derivaciones:detalle', args=[derivacion.pk])
+        )
+        self.assertNotContains(detalle, 'Eliminar derivación')
+
+        lista = self.client.get(reverse('derivaciones:lista'))
+        self.assertNotContains(lista, 'Confirmar eliminación')
+
+
 class PermisosBandejaTests(BaseDerivacionesTests):
     def test_derivacion_solo_visible_para_origen_destino_y_recepcion(self):
         derivacion = self.crear_derivacion()

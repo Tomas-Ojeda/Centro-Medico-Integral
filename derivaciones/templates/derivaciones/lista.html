@@ -3,7 +3,7 @@
 {% block title %}Derivaciones — {{ NOMBRE_CENTRO }}{% endblock %}
 {% block nav_derivaciones %}active{% endblock %}
 {% block page_title %}Derivaciones{% endblock %}
-{% block page_subtitle %}{% if es_profesional %}Pacientes derivados entre profesionales{% else %}Todas las derivaciones del centro (solo lectura){% endif %}{% endblock %}
+{% block page_subtitle %}{% if es_profesional %}Pacientes derivados entre profesionales{% elif es_admin %}Todas las derivaciones del centro (administración){% else %}Todas las derivaciones del centro (solo lectura){% endif %}{% endblock %}
 
 {% block header_action %}
 {% if es_recepcion %}
@@ -85,6 +85,20 @@
                     <button type="submit" class="btn btn-danger btn-sm" style="width:100%;justify-content:center;"
                             onclick="return confirm('¿Cancelar esta derivación? El profesional destino dejará de tener acceso.');">
                         Confirmar cancelación
+                    </button>
+                </form>
+            </details>
+            {% endif %}
+            {% if es_admin %}
+            <details>
+                <summary class="btn btn-danger btn-sm" style="justify-content:center;list-style:none;cursor:pointer;">
+                    🗑 Eliminar
+                </summary>
+                <form method="post" action="{% url 'derivaciones:eliminar' derivacion.pk %}" style="margin-top:8px;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger btn-sm" style="width:100%;justify-content:center;"
+                            onclick="return confirm('¿Eliminar definitivamente esta derivación? Esta acción no se puede deshacer.');">
+                        Confirmar eliminación
                     </button>
                 </form>
             </details>
