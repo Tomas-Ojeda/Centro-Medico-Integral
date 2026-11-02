@@ -40,6 +40,15 @@
             <div class="stat-label">Pendientes de confirmar</div>
         </div>
     </div>
+    {% if es_profesional %}
+    <div class="stat-card">
+        <div class="stat-icon blue">🔀</div>
+        <div>
+            <div class="stat-value">{{ derivaciones_pendientes }}</div>
+            <div class="stat-label">Derivaciones pendientes</div>
+        </div>
+    </div>
+    {% endif %}
 </div>
 
 {% if es_recepcion %}
@@ -172,6 +181,29 @@
             <p style="color:var(--text-secondary);font-size:13px;margin-top:8px;">Sin turnos para mañana.</p>
             {% endif %}
         </div>
+
+        <!-- DERIVACIONES RECIBIDAS (PROFESIONAL) -->
+        {% if es_profesional %}
+        <div class="card" style="margin-bottom:16px;">
+            <div class="card-header">
+                <span class="card-title">🔀 Derivaciones pendientes</span>
+                <a href="{% url 'derivaciones:lista' %}" class="btn btn-outline btn-sm">Ver todas</a>
+            </div>
+            {% for derivacion in derivaciones_recientes %}
+            <a href="{% url 'derivaciones:detalle' derivacion.pk %}"
+               style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);text-decoration:none;color:inherit;">
+                <span class="badge badge-pendiente">Nueva</span>
+                <div style="flex:1;min-width:0;">
+                    <div style="font-size:13px;font-weight:600;">{{ derivacion.paciente.apellido }}, {{ derivacion.paciente.nombre }}</div>
+                    <div style="font-size:11px;color:var(--text-secondary);">De {{ derivacion.profesional_origen }} · {{ derivacion.creado|date:"d/m/Y" }}</div>
+                </div>
+                <span style="color:var(--text-secondary);">›</span>
+            </a>
+            {% empty %}
+            <p style="color:var(--text-secondary);font-size:13px;margin-top:8px;">No tenés derivaciones pendientes.</p>
+            {% endfor %}
+        </div>
+        {% endif %}
 
         <!-- PACIENTES RECIENTES -->
         <div class="card">

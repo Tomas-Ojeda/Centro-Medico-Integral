@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'pacientes',
     'profesionales',
     'turnos',
+    'derivaciones',
     'historias',
     'auditoria',
     'preferencias',

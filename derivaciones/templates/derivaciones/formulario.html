@@ -1,0 +1,140 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ titulo }} — {{ NOMBRE_CENTRO }}{% endblock %}
+{% block nav_pacientes %}active{% endblock %}
+{% block page_title %}{{ titulo }}{% endblock %}
+{% block page_subtitle %}{{ paciente.apellido }}, {{ paciente.nombre }}{% endblock %}
+
+{% block content %}
+<div style="max-width:680px;">
+    <div class="card" style="margin-bottom:16px;padding:16px 20px;">
+        <div style="display:flex;align-items:center;gap:12px;">
+            <div class="patient-avatar">{{ paciente.iniciales }}</div>
+            <div>
+                <div style="font-size:15px;font-weight:600;">{{ paciente.apellido }}, {{ paciente.nombre }}</div>
+                <div style="font-size:12px;color:var(--text-secondary);">
+                    DNI {{ paciente.dni }}
+                    {% if profesional_origen %}· Origen: {{ profesional_origen }}{% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <form method="post" novalidate>
+            {% csrf_token %}
+            {% if form.non_field_errors %}
+            <ul class="errorlist">{% for e in form.non_field_errors %}<li>{{ e }}</li>{% endfor %}</ul>
+            {% endif %}
+
+            {% if es_admin_form %}
+            <div class="form-group" style="margin-bottom:16px;">
+                <label for="{{ form.profesional_origen.id_for_label }}">Profesional de origen *</label>
+                {{ form.profesional_origen }}
+                <div style="font-size:11px;color:var(--text-secondary);">
+                    Elegí al profesional que atiende al paciente y lo deriva.
+                </div>
+                {% if form.profesional_origen.errors %}<ul class="errorlist">{% for e in form.profesional_origen.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+            </div>
+            {% endif %}
+
+            <div class="form-group" style="margin-bottom:16px;">
+                <label>Profesional de destino *</label>
+                <div class="autocomplete-container">
+                    <input type="text" id="profesional-search"
+                           placeholder="Buscar profesional por nombre o especialidad..."
+                           autocomplete="off"
+                           value="{% if profesional_destino_inicial %}{{ profesional_destino_inicial.nombre_completo }}{% endif %}"
+                           style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--input-bg);color:var(--text-primary);">
+                    <div class="autocomplete-list" id="profesional-results"></div>
+                </div>
+                {{ form.profesional_destino.as_hidden }}
+                {% if form.profesional_destino.errors %}<ul class="errorlist">{% for e in form.profesional_destino.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+            </div>
+
+            <div id="aviso-sin-usuario" class="alert alert-error"
+                 style="background:#fffbeb;color:#b45309;border-color:#fde68a;display:{% if profesional_destino_inicial and not profesional_destino_inicial.usuario_id %}flex{% else %}none{% endif %};">
+                ⚠️ Este profesional no tiene usuario vinculado: la derivación y la solicitud de turno se van a crear igual, pero no recibirá la notificación en la app.
+            </div>
+
+            <div class="form-group" style="margin-bottom:8px;">
+                <label for="{{ form.motivo.id_for_label }}">Motivo de la derivación *</label>
+                {{ form.motivo }}
+                {% if form.motivo.errors %}<ul class="errorlist">{% for e in form.motivo.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+            </div>
+            <div style="font-size:11px;color:var(--text-secondary);margin-bottom:16px;">
+                Al guardar se crea automáticamente una solicitud de turno para que Recepción agende con el profesional de destino.
+                Los profesionales sin usuario vinculado no reciben notificaciones en la app.
+            </div>
+
+            <div class="form-actions">
+                <a href="{% url 'pacientes:detalle' paciente.pk %}" class="btn btn-outline">Cancelar</a>
+                <button type="submit" class="btn btn-primary">Derivar paciente</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    const searchInput = document.getElementById('profesional-search');
+    const resultsDiv = document.getElementById('profesional-results');
+    const hiddenInput = document.querySelector('input[name="profesional_destino"]');
+    const aviso = document.getElementById('aviso-sin-usuario');
+    let timer;
+
+    if (!searchInput || !resultsDiv || !hiddenInput) return;
+
+    function mostrarAviso(tieneUsuario) {
+        if (!aviso) return;
+        aviso.style.display = tieneUsuario ? 'none' : 'flex';
+    }
+
+    searchInput.addEventListener('input', function() {
+        clearTimeout(timer);
+        const q = this.value.trim();
+
+        if (q.length < 1) {
+            resultsDiv.classList.remove('show');
+            return;
+        }
+
+        timer = setTimeout(() => {
+            fetch("{% url 'derivaciones:buscar_profesionales' %}?q=" + encodeURIComponent(q))
+                .then(r => r.json())
+                .then(data => {
+                    if (data.results.length === 0) {
+                        resultsDiv.innerHTML = '<div class="autocomplete-empty">No se encontraron profesionales</div>';
+                    } else {
+                        resultsDiv.innerHTML = data.results.map(p => `
+                            <div class="autocomplete-item" data-id="${p.id}" data-nombre="${p.nombre_completo}" data-tiene-usuario="${p.tiene_usuario}">
+                                <div class="item-title">${p.nombre_completo}${p.tiene_usuario ? '' : ' · sin usuario'}</div>
+                                <div class="item-sub">${p.especialidad || 'Sin especialidad'}</div>
+                            </div>
+                        `).join('');
+                    }
+                    resultsDiv.classList.add('show');
+                });
+        }, 200);
+    });
+
+    resultsDiv.addEventListener('click', function(e) {
+        const item = e.target.closest('.autocomplete-item');
+        if (item) {
+            searchInput.value = item.dataset.nombre;
+            hiddenInput.value = item.dataset.id;
+            mostrarAviso(item.dataset.tieneUsuario === 'true');
+            resultsDiv.classList.remove('show');
+        }
+    });
+
+    document.addEventListener('click', function(e) {
+        if (!searchInput.contains(e.target) && !resultsDiv.contains(e.target)) {
+            resultsDiv.classList.remove('show');
+        }
+    });
+})();
+</script>
+{% endblock %}

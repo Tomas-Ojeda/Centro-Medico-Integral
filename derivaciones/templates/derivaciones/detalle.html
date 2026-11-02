@@ -1,0 +1,103 @@
+{% extends 'base.html' %}
+
+{% block title %}Derivación de {{ derivacion.paciente }} — {{ NOMBRE_CENTRO }}{% endblock %}
+{% block nav_derivaciones %}active{% endblock %}
+{% block page_title %}Derivación{% endblock %}
+{% block page_subtitle %}{{ derivacion.paciente.apellido }}, {{ derivacion.paciente.nombre }}{% endblock %}
+
+{% block header_action %}
+{% if es_recepcion %}
+<a href="{% url 'derivaciones:lista' %}" class="btn btn-outline">← Todas las derivaciones</a>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<div style="max-width:760px;">
+    <div class="card" style="margin-bottom:20px;">
+        <div class="card-header" style="flex-wrap:wrap;gap:10px;">
+            <span class="card-title">🔀 Derivación</span>
+            {% if derivacion.estado == 'pendiente' %}
+            <span class="badge badge-pendiente">Pendiente</span>
+            {% elif derivacion.estado == 'vista' %}
+            <span class="badge badge-confirmado">Vista</span>
+            {% else %}
+            <span class="badge badge-cancelado">Cancelada</span>
+            {% endif %}
+        </div>
+
+        <div style="display:flex;align-items:center;gap:14px;padding:12px;border:1px solid var(--border);border-radius:10px;background:var(--bg-main);margin-bottom:16px;">
+            <div class="patient-avatar">{{ derivacion.paciente.iniciales }}</div>
+            <div style="flex:1;min-width:0;">
+                <div style="font-size:16px;font-weight:600;">{{ derivacion.paciente.apellido }}, {{ derivacion.paciente.nombre }}</div>
+                <div style="font-size:12px;color:var(--text-secondary);">DNI {{ derivacion.paciente.dni }} · {{ derivacion.paciente.obra_social }}</div>
+            </div>
+            <a href="{% url 'pacientes:detalle' derivacion.paciente.pk %}" class="btn btn-accent btn-sm">Ver ficha</a>
+        </div>
+
+        <div class="info-grid" style="margin-bottom:16px;">
+            <div class="info-item">
+                <label>Profesional de origen</label>
+                <div class="value">{{ derivacion.profesional_origen }}</div>
+            </div>
+            <div class="info-item">
+                <label>Profesional de destino</label>
+                <div class="value">{{ derivacion.profesional_destino }}</div>
+            </div>
+            <div class="info-item">
+                <label>Creada</label>
+                <div class="value">{{ derivacion.creado|date:"d/m/Y H:i" }}</div>
+            </div>
+            <div class="info-item">
+                <label>Vista</label>
+                <div class="value">{% if derivacion.vista_en %}{{ derivacion.vista_en|date:"d/m/Y H:i" }}{% else %}—{% endif %}</div>
+            </div>
+        </div>
+
+        <div style="margin-bottom:16px;">
+            <label style="display:block;margin-bottom:4px;">Motivo</label>
+            <div style="font-size:14px;color:var(--text-primary);padding:12px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;">
+                {{ derivacion.motivo|linebreaksbr }}
+            </div>
+        </div>
+
+        {% if derivacion.solicitud_turno %}
+        <div style="font-size:13px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--bg-main);">
+            📅 Solicitud de turno para el
+            <strong>{{ derivacion.solicitud_turno.fecha_sugerida|date:"d/m/Y" }}</strong>
+            — {{ derivacion.solicitud_turno.get_estado_display }}
+            {% if es_recepcion %}
+            · <a href="{% url 'turnos:por_agendar' %}" class="file-link">Ir a Turnos por agendar</a>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <div style="font-size:11px;color:var(--text-secondary);margin-top:14px;">
+            Registrada por
+            {% if derivacion.creado_por %}
+                {{ derivacion.creado_por.get_full_name|default:derivacion.creado_por.username }}
+            {% else %}
+                un usuario eliminado
+            {% endif %}
+        </div>
+
+        {% if puede_cancelar %}
+        <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);">
+            <form method="post" action="{% url 'derivaciones:cancelar' derivacion.pk %}"
+                  onsubmit="return confirm('¿Cancelar esta derivación? El profesional destino dejará de tener acceso.');">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-danger">✕ Cancelar derivación</button>
+                <span style="font-size:12px;color:var(--text-secondary);margin-left:10px;">
+                    Solo mientras esté pendiente. También se descarta la solicitud de turno.
+                </span>
+            </form>
+        </div>
+        {% endif %}
+    </div>
+
+    {% if es_recepcion %}
+    <div class="alert alert-success" style="background:var(--bg-card);color:var(--text-secondary);border-color:var(--border);">
+        Estás viendo esta derivación en modo lectura.
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

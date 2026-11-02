@@ -56,6 +56,9 @@
                     </div>
                 </div>
                 <div style="display:flex;gap:8px;">
+                    {% if puede_derivar %}
+                    <a href="{% url 'derivaciones:crear' paciente.pk %}" class="btn btn-primary btn-sm">🔀 Derivar paciente</a>
+                    {% endif %}
                     <a href="{% url 'pacientes:descargar_pdf' paciente.pk %}" class="btn btn-accent btn-sm">📄 Descargar PDF</a>
                     {% if es_recepcion %}
                     <a href="{% url 'pacientes:editar' paciente.pk %}" class="btn btn-outline btn-sm">✏️ Editar</a>
@@ -91,6 +94,32 @@
                 </div>
             </div>
         </div>
+
+        <!-- DERIVACIÓN RECIBIDA -->
+        {% if derivacion_recibida %}
+        <div class="card" style="margin-bottom:20px;border-left:4px solid var(--accent);">
+            <div style="display:flex;align-items:flex-start;gap:14px;">
+                <div style="font-size:24px;line-height:1;">🔀</div>
+                <div style="flex:1;min-width:0;">
+                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                        <span style="font-size:14px;font-weight:600;">
+                            Derivado por {{ derivacion_recibida.profesional_origen }}
+                            el {{ derivacion_recibida.creado|date:"d/m/Y" }}
+                        </span>
+                        {% if derivacion_recibida.estado == 'pendiente' %}
+                        <span class="badge badge-pendiente">Nueva</span>
+                        {% else %}
+                        <span class="badge badge-confirmado">Vista</span>
+                        {% endif %}
+                    </div>
+                    <div style="font-size:13px;color:var(--text-primary);margin-top:6px;padding:8px 10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;">
+                        <strong>Motivo:</strong> {{ derivacion_recibida.motivo|linebreaksbr }}
+                    </div>
+                    <a href="{% url 'derivaciones:detalle' derivacion_recibida.pk %}" class="btn btn-outline btn-sm" style="margin-top:10px;">Ver derivación</a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
 
         <!-- PRÓXIMO TURNO SOLICITADO (PROFESIONAL) -->
         {% if es_profesional %}

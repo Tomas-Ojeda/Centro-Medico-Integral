@@ -5,12 +5,27 @@ from django.utils import timezone
 
 class PacienteQuerySet(models.QuerySet):
     def atendidos_por(self, profesional):
-        """Pacientes con al menos un turno o una consulta de ese profesional."""
+        """Pacientes vinculados a ese profesional.
+
+        Incluye turnos, consultas y derivaciones recibidas pendientes o
+        vistas. Una derivación cancelada no otorga acceso por sí sola.
+        """
         if profesional is None:
             return self.none()
+
+        # Import local para evitar un ciclo de importación entre apps.
+        from derivaciones.models import EstadoDerivacion
+
         return self.filter(
             Q(turnos__profesional=profesional)
             | Q(consultas__profesional=profesional)
+            | Q(
+                derivaciones__profesional_destino=profesional,
+                derivaciones__estado__in=[
+                    EstadoDerivacion.PENDIENTE,
+                    EstadoDerivacion.VISTA,
+                ],
+            )
         ).distinct()
 
 

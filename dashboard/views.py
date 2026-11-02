@@ -8,6 +8,7 @@ from pacientes.models import Paciente
 from profesionales.models import Profesional
 from turnos.models import Turno, EstadoTurno, FormaPago
 from historias.models import Consulta
+from derivaciones.models import Derivacion, EstadoDerivacion
 from consultorio_salto.permisos import RecepcionOProfesionalMixin, es_recepcion
 
 
@@ -33,10 +34,21 @@ class DashboardView(RecepcionOProfesionalMixin, LoginRequiredMixin, TemplateView
             turnos_hoy = turnos_hoy.filter(profesional=self.profesional)
             consultas = Consulta.objects.filter(profesional=self.profesional)
             ctx['total_profesionales'] = 1
+
+            derivaciones = Derivacion.objects.filter(
+                profesional_destino=self.profesional,
+                estado=EstadoDerivacion.PENDIENTE,
+            )
+            ctx['derivaciones_pendientes'] = derivaciones.count()
+            ctx['derivaciones_recientes'] = derivaciones.select_related(
+                'paciente', 'profesional_origen'
+            ).order_by('-creado')[:5]
         else:
             pacientes = Paciente.objects.all()
             consultas = Consulta.objects.all()
             ctx['total_profesionales'] = Profesional.objects.filter(activo=True).count()
+            ctx['derivaciones_pendientes'] = 0
+            ctx['derivaciones_recientes'] = []
 
         ctx['total_pacientes'] = pacientes.count()
         ctx['turnos_hoy'] = turnos_hoy.count()

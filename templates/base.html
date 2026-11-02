@@ -833,6 +833,12 @@
             {% endif %}
         </a>
         {% endif %}
+        <a href="{% url 'derivaciones:lista' %}" class="nav-item {% block nav_derivaciones %}{% endblock %}">
+            <span class="nav-icon"><i class="fas fa-share-square"></i></span> Derivaciones
+            {% if derivaciones_pendientes_count %}
+            <span class="nav-badge" title="Derivaciones pendientes">{{ derivaciones_pendientes_count }}</span>
+            {% endif %}
+        </a>
         {% if es_recepcion %}
         <a href="{% url 'profesionales:lista' %}" class="nav-item {% block nav_profesionales %}{% endblock %}">
             <span class="nav-icon"><i class="fas fa-user-md"></i></span> Profesionales

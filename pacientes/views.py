@@ -13,6 +13,7 @@ from .models import Paciente
 from .forms import PacienteForm
 from historias.models import Consulta, ValorCampoAdicional
 from historias.permisos import puede_crear_notas, puede_ver_notas
+from derivaciones.models import Derivacion, EstadoDerivacion
 from turnos.models import SolicitudTurno
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -24,6 +25,7 @@ from auditoria.mixins import AuditoriaMixin
 from consultorio_salto.permisos import (
     RecepcionOProfesionalMixin,
     SoloRecepcionMixin,
+    es_admin,
 )
 import io
 
@@ -89,6 +91,22 @@ class PacienteDetailView(RecepcionOProfesionalMixin, LoginRequiredMixin, Auditor
             'subido_por', 'turno'
         ).order_by('-creado')
         ctx['pacientes_sidebar'] = self.get_queryset()[:20]
+
+        ctx['puede_derivar'] = bool(self.profesional) or es_admin(
+            self.request.user
+        )
+        ctx['derivacion_recibida'] = None
+        if self.profesional:
+            ctx['derivacion_recibida'] = Derivacion.objects.filter(
+                paciente=self.object,
+                profesional_destino=self.profesional,
+                estado__in=[
+                    EstadoDerivacion.PENDIENTE,
+                    EstadoDerivacion.VISTA,
+                ],
+            ).select_related(
+                'profesional_origen'
+            ).order_by('-creado').first()
 
         if self.profesional:
             ctx['solicitud_turno'] = SolicitudTurno.objects.filter(

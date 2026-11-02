@@ -30,16 +30,29 @@ def roles(request):
             'profesional_actual': None,
             'pagos_visibles_profesional': settings.PAGOS_VISIBLES_PARA_PROFESIONAL,
             'solicitudes_pendientes_count': 0,
+            'derivaciones_pendientes_count': 0,
         }
 
     recepcion = es_recepcion(user)
-    pendientes = 0
+    profesional = profesional_actual(user)
+
+    solicitudes_pendientes = 0
     if recepcion:
         # Una sola consulta y solo para quienes ven la cola de trabajo.
         from turnos.models import EstadoSolicitud, SolicitudTurno
 
-        pendientes = SolicitudTurno.objects.filter(
+        solicitudes_pendientes = SolicitudTurno.objects.filter(
             estado=EstadoSolicitud.PENDIENTE
+        ).count()
+
+    derivaciones_pendientes = 0
+    if profesional is not None:
+        # Una sola consulta: notificación del profesional destino.
+        from derivaciones.models import Derivacion, EstadoDerivacion
+
+        derivaciones_pendientes = Derivacion.objects.filter(
+            profesional_destino=profesional,
+            estado=EstadoDerivacion.PENDIENTE,
         ).count()
 
     return {
@@ -47,7 +60,8 @@ def roles(request):
         'es_admin': es_admin(user),
         'es_recepcion': recepcion,
         'es_profesional': es_profesional(user),
-        'profesional_actual': profesional_actual(user),
+        'profesional_actual': profesional,
         'pagos_visibles_profesional': settings.PAGOS_VISIBLES_PARA_PROFESIONAL,
-        'solicitudes_pendientes_count': pendientes,
+        'solicitudes_pendientes_count': solicitudes_pendientes,
+        'derivaciones_pendientes_count': derivaciones_pendientes,
     }
