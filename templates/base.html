@@ -11,26 +11,36 @@
         /* ===== CSS RESET & BASE ===== */
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         :root {
-            --sidebar-bg: #1a2035;
-            --sidebar-hover: #242d45;
-            --sidebar-active: #2d3a56;
-            --accent: #c9a84c;
-            --accent-light: #e8c97a;
-            --accent-text: #7a5c14;
-            --text-primary: #1e293b;
-            --text-secondary: #64748b;
-            --text-light: #94a3b8;
-            --bg-main: #f6fafc;
+            --sidebar-bg: #14245c;
+            --sidebar-hover: #1f3277;
+            --sidebar-active: #2f6fe0;
+            --accent: #2f6fe0;
+            --accent-light: #8fbdf0;
+            --accent-text: #1d4fa8;
+            --on-accent: #ffffff;
+            --text-primary: #1d2b4d;
+            --text-secondary: #4a5a7a;
+            --text-light: #6b7a99;
+            --bg-main: #eef4fc;
             --bg-card: #ffffff;
-            --border: #e2e8f0;
+            --border: #dbe6f5;
             --success: #22c55e;
             --warning: #f59e0b;
             --danger: #ef4444;
             --info: #3b82f6;
             --sidebar-width: 260px;
             --input-bg: #ffffff;
-            --hover-row: #f8fafc;
-            --shadow: rgba(0,0,0,0.05);
+            --hover-row: #f4f8fe;
+            --shadow: rgba(30,60,140,.10);
+            /* Variables semánticas derivadas de la paleta activa */
+            --sidebar-bg-2: color-mix(in srgb, var(--sidebar-bg) 86%, #ffffff);
+            --tile-bg: color-mix(in srgb, var(--accent) 16%, var(--bg-card));
+            --tile-fg: var(--accent-text);
+            --deco-fill: color-mix(in srgb, var(--accent) 30%, transparent);
+            --deco-line: color-mix(in srgb, var(--accent) 70%, transparent);
+            --radius-card: 18px;
+            --radius-ctl: 12px;
+            --shadow-card: 0 8px 24px var(--shadow);
             /* Calendario - modo claro */
             --cal-pendiente-bg: #fffbeb;
             --cal-pendiente-text: #d97706;
@@ -42,15 +52,23 @@
             --cal-ausente-text: #64748b;
         }
         [data-theme="dark"] {
-            --text-primary: #e2e8f0;
-            --text-secondary: #94a3b8;
-            --text-light: #64748b;
-            --bg-main: #0f172a;
-            --bg-card: #1e293b;
-            --border: #334155;
-            --input-bg: #0f172a;
-            --hover-row: #1e293b;
-            --shadow: rgba(0,0,0,0.3);
+            --sidebar-bg: #0b1330;
+            --sidebar-hover: #13204a;
+            --sidebar-active: #2f6fe0;
+            --accent: #5b9bff;
+            --accent-text: #8fbdf0;
+            --on-accent: #1a2035;
+            --text-primary: #e6eeff;
+            --text-secondary: #a9b8d9;
+            --text-light: #7f90b5;
+            --bg-main: #0b1430;
+            --bg-card: #13204a;
+            --border: #233a73;
+            --input-bg: #0b1430;
+            --hover-row: #13204a;
+            --shadow: rgba(0,0,0,0.4);
+            /* En oscuro los acentos son claros: el ícono usa el tono claro. */
+            --tile-fg: var(--accent-light);
             /* Calendario - modo oscuro */
             --cal-pendiente-bg: rgba(245,158,11,0.15);
             --cal-pendiente-text: #fbbf24;
@@ -90,7 +108,7 @@
             background: var(--accent);
             border-radius: 10px;
             display: flex; align-items: center; justify-content: center;
-            color: #1a2035;
+            color: var(--on-accent);
             font-size: 18px;
         }
         .brand-name {
@@ -117,7 +135,7 @@
             border-radius: 50%;
             background: var(--accent);
             display: flex; align-items: center; justify-content: center;
-            font-size: 13px; font-weight: 700; color: #1a2035;
+            font-size: 13px; font-weight: 700; color: var(--on-accent);
             flex-shrink: 0;
         }
         .user-info { flex: 1; min-width: 0; }
@@ -150,7 +168,7 @@
             padding: 0 6px;
             border-radius: 999px;
             background: var(--accent);
-            color: #1a2035;
+            color: var(--on-accent);
             font-size: 11px;
             font-weight: 700;
             display: inline-flex;
@@ -276,10 +294,11 @@
         /* ===== CARDS ===== */
         .card {
             background: var(--bg-card);
-            border-radius: 12px;
+            border-radius: var(--radius-card);
             border: 1px solid var(--border);
             padding: 24px;
             margin-bottom: 20px;
+            box-shadow: var(--shadow-card);
             transition: background 0.3s, border-color 0.3s;
         }
         .card-header {
@@ -299,11 +318,12 @@
         .stat-card {
             background: var(--bg-card);
             border: 1px solid var(--border);
-            border-radius: 12px;
+            border-radius: var(--radius-card);
             padding: 20px;
             display: flex;
             align-items: center;
             gap: 16px;
+            box-shadow: var(--shadow-card);
             transition: background 0.3s, border-color 0.3s;
         }
         .stat-icon {
@@ -313,14 +333,10 @@
             font-size: 20px;
             flex-shrink: 0;
         }
-        .stat-icon.blue { background: #eff6ff; color: #3b82f6; }
-        .stat-icon.green { background: #f0fdf4; color: #22c55e; }
-        .stat-icon.amber { background: #fffbeb; color: #f59e0b; }
-        .stat-icon.purple { background: #faf5ff; color: #a855f7; }
-        [data-theme="dark"] .stat-icon.blue { background: rgba(59,130,246,0.15); color: #60a5fa; }
-        [data-theme="dark"] .stat-icon.green { background: rgba(34,197,94,0.15); color: #4ade80; }
-        [data-theme="dark"] .stat-icon.amber { background: rgba(245,158,11,0.15); color: #fbbf24; }
-        [data-theme="dark"] .stat-icon.purple { background: rgba(168,85,247,0.15); color: #c084fc; }
+        .stat-icon.blue,
+        .stat-icon.green,
+        .stat-icon.amber,
+        .stat-icon.purple { background: var(--tile-bg); color: var(--tile-fg); }
         .stat-value { font-size: 26px; font-weight: 700; color: var(--text-primary); }
         .stat-label { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
 
@@ -330,7 +346,7 @@
             align-items: center;
             gap: 6px;
             padding: 9px 18px;
-            border-radius: 8px;
+            border-radius: var(--radius-ctl);
             font-size: 13px;
             font-weight: 600;
             text-decoration: none;
@@ -339,10 +355,13 @@
             transition: all 0.15s;
             white-space: nowrap;
         }
-        .btn-primary { background: var(--sidebar-bg); color: #fff; }
-        .btn-primary:hover { background: #0f172a; }
-        .btn-accent { background: var(--accent); color: #1a2035; }
-        .btn-accent:hover { background: var(--accent-light); }
+        .btn-primary { background: var(--sidebar-bg); color: #ffffff; }
+        .btn-primary:hover { background: var(--sidebar-hover); }
+        .btn-accent { background: var(--accent); color: var(--on-accent); }
+        .btn-accent:hover {
+            background: color-mix(in srgb, var(--accent) 86%, #000000);
+            color: var(--on-accent);
+        }
         .btn-sm { padding: 5px 12px; font-size: 12px; border-radius: 6px; }
         .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text-primary); }
         .btn-outline:hover { background: var(--bg-main); }
@@ -402,7 +421,7 @@
         input[type=number], select, textarea {
             padding: 9px 12px;
             border: 1px solid var(--border);
-            border-radius: 8px;
+            border-radius: var(--radius-ctl);
             font-size: 13px;
             color: var(--text-primary);
             background: var(--input-bg);
@@ -412,7 +431,7 @@
         input:focus, select:focus, textarea:focus {
             outline: none;
             border-color: var(--accent);
-            box-shadow: 0 0 0 3px rgba(201,168,76,0.12);
+            box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
         }
         textarea { resize: vertical; min-height: 80px; }
         .form-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
@@ -559,10 +578,11 @@
             gap: 10px;
             background: var(--bg-card);
             border: 1px solid var(--border);
-            border-radius: 10px;
+            border-radius: var(--radius-card);
             padding: 12px 16px;
             margin-bottom: 20px;
             flex-wrap: wrap;
+            box-shadow: var(--shadow-card);
             transition: background 0.3s, border-color 0.3s;
         }
         .filter-bar select, .filter-bar input[type=date] { min-width: 160px; }
@@ -685,7 +705,7 @@
         /* Hover lift effect for cards */
         .card:hover, .stat-card:hover {
             transform: translateY(-2px);
-            box-shadow: 0 8px 25px var(--shadow);
+            box-shadow: var(--shadow-card);
         }
         
         /* Button press effect */
@@ -881,48 +901,15 @@
                 </button>
                 <div class="palette-menu" id="palette-menu" role="menu"
                      aria-label="Paletas de colores" hidden>
+                    {% for paleta in paletas_disponibles %}
                     <button type="button" class="palette-option" role="menuitemradio"
-                            data-palette-value="predeterminado"
-                            aria-checked="{% if paleta_usuario == 'predeterminado' %}true{% else %}false{% endif %}">
-                        <span class="palette-swatch" style="background:#c9a84c;"></span>
-                        <span>Predeterminado</span>
+                            data-palette-value="{{ paleta.clave }}"
+                            aria-checked="{% if paleta_usuario == paleta.clave %}true{% else %}false{% endif %}">
+                        <span class="palette-swatch" style="background:{{ paleta.muestra }};"></span>
+                        <span>{{ paleta.nombre }}</span>
                         <i class="fas fa-check palette-check"></i>
                     </button>
-                    <button type="button" class="palette-option" role="menuitemradio"
-                            data-palette-value="menta"
-                            aria-checked="{% if paleta_usuario == 'menta' %}true{% else %}false{% endif %}">
-                        <span class="palette-swatch" style="background:#6cc3a8;"></span>
-                        <span>Menta</span>
-                        <i class="fas fa-check palette-check"></i>
-                    </button>
-                    <button type="button" class="palette-option" role="menuitemradio"
-                            data-palette-value="lavanda"
-                            aria-checked="{% if paleta_usuario == 'lavanda' %}true{% else %}false{% endif %}">
-                        <span class="palette-swatch" style="background:#a99be0;"></span>
-                        <span>Lavanda</span>
-                        <i class="fas fa-check palette-check"></i>
-                    </button>
-                    <button type="button" class="palette-option" role="menuitemradio"
-                            data-palette-value="durazno"
-                            aria-checked="{% if paleta_usuario == 'durazno' %}true{% else %}false{% endif %}">
-                        <span class="palette-swatch" style="background:#f0a98a;"></span>
-                        <span>Durazno</span>
-                        <i class="fas fa-check palette-check"></i>
-                    </button>
-                    <button type="button" class="palette-option" role="menuitemradio"
-                            data-palette-value="cielo"
-                            aria-checked="{% if paleta_usuario == 'cielo' %}true{% else %}false{% endif %}">
-                        <span class="palette-swatch" style="background:#7db7e8;"></span>
-                        <span>Cielo</span>
-                        <i class="fas fa-check palette-check"></i>
-                    </button>
-                    <button type="button" class="palette-option" role="menuitemradio"
-                            data-palette-value="rosa"
-                            aria-checked="{% if paleta_usuario == 'rosa' %}true{% else %}false{% endif %}">
-                        <span class="palette-swatch" style="background:#e8a0b4;"></span>
-                        <span>Rosa</span>
-                        <i class="fas fa-check palette-check"></i>
-                    </button>
+                    {% endfor %}
                 </div>
             </div>
             <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()"

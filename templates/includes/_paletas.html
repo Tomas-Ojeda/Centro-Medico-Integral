@@ -1,10 +1,42 @@
 /* ===== PALETAS DE COLOR ===== */
-/* El predeterminado vive en :root. Cada paleta define solo variables. */
+/* El predeterminado (Consultorios) vive en :root. Cada paleta define solo variables. */
+
+[data-palette="dorado"] {
+    --accent: #c9a84c;
+    --accent-light: #e8c97a;
+    --accent-text: #7a5c14;
+    --on-accent: #1a2035;
+    --bg-main: #f6fafc;
+    --bg-card: #ffffff;
+    --border: #e2e8f0;
+    --hover-row: #f8fafc;
+    --input-bg: #ffffff;
+    --sidebar-bg: #1a2035;
+    --sidebar-hover: #242d45;
+    --sidebar-active: #2d3a56;
+    --text-primary: #1e293b;
+    --text-secondary: #64748b;
+    --text-light: #94a3b8;
+    --shadow: rgba(0,0,0,0.05);
+}
+
+[data-theme="dark"][data-palette="dorado"] {
+    --bg-main: #0f172a;
+    --bg-card: #1e293b;
+    --border: #334155;
+    --input-bg: #0f172a;
+    --hover-row: #1e293b;
+    --text-primary: #e2e8f0;
+    --text-secondary: #94a3b8;
+    --text-light: #64748b;
+    --shadow: rgba(0,0,0,0.3);
+}
 
 [data-palette="menta"] {
     --accent: #6cc3a8;
     --accent-light: #9adcc6;
     --accent-text: #2f6b5d;
+    --on-accent: #1a2035;
     --bg-main: #f3fcf9;
     --border: #d5e8e0;
     --hover-row: #f4faf7;
@@ -25,6 +57,7 @@
     --accent: #a99be0;
     --accent-light: #c6bcf0;
     --accent-text: #5a4c95;
+    --on-accent: #1a2035;
     --bg-main: #faf9fe;
     --border: #e1dcf2;
     --hover-row: #f8f6fd;
@@ -45,6 +78,7 @@
     --accent: #f0a98a;
     --accent-light: #f7c6ae;
     --accent-text: #9c4f31;
+    --on-accent: #1a2035;
     --bg-main: #fff9f5;
     --border: #f1dfd5;
     --hover-row: #fef8f5;
@@ -65,6 +99,7 @@
     --accent: #7db7e8;
     --accent-light: #a8d0f2;
     --accent-text: #2b5f8c;
+    --on-accent: #1a2035;
     --bg-main: #f3fbff;
     --border: #d9e6f3;
     --hover-row: #f5f9fd;
@@ -85,6 +120,7 @@
     --accent: #e8a0b4;
     --accent-light: #f2c1cf;
     --accent-text: #964660;
+    --on-accent: #1a2035;
     --bg-main: #fff8fb;
     --border: #f0dce2;
     --hover-row: #fef7f9;

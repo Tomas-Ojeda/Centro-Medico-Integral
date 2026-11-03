@@ -1,7 +1,9 @@
 import re
+from importlib import import_module
 from math import pow
 from pathlib import Path
 
+from django.apps import apps as django_apps
 from django.conf import settings
 from django.contrib.auth.models import Group, User
 from django.test import SimpleTestCase, TestCase
@@ -111,6 +113,24 @@ class PaletaUsuarioTests(BasePreferenciasTests):
         self.assertFalse(
             PreferenciaUsuario.objects.filter(usuario=self.recepcion).exists()
         )
+
+    def test_paletas_incluyen_dorado_y_la_etiqueta_consultorios(self):
+        etiquetas = dict(PALETAS)
+
+        self.assertEqual(etiquetas['predeterminado'], 'Consultorios')
+        self.assertEqual(etiquetas['dorado'], 'Dorado')
+
+    def test_menu_de_paletas_se_genera_desde_el_context_processor(self):
+        self.login(self.recepcion)
+
+        response = self.client.get(reverse('dashboard:index'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.context['paletas_disponibles']), len(PALETAS))
+        for clave, nombre in PALETAS:
+            with self.subTest(paleta=clave):
+                self.assertContains(response, f'data-palette-value="{clave}"')
+                self.assertContains(response, f'<span>{nombre}</span>', html=True)
 
     def test_html_refleja_la_paleta_de_cada_usuario(self):
         for indice, (clave, _) in enumerate(PALETAS):
@@ -253,6 +273,9 @@ class PaletasContrasteTests(SimpleTestCase):
         self.assertIsNotNone(raiz)
         self.assertIsNotNone(oscuro_base)
 
+        raiz = _parsear_declaraciones(raiz.group(1))
+        oscuro_base = _parsear_declaraciones(oscuro_base.group(1))
+
         claras = _parsear_bloques(
             css_paletas,
             r'(?<!\])\[data-palette="([^"]+)"\]\s*\{(.*?)\}',
@@ -262,85 +285,117 @@ class PaletasContrasteTests(SimpleTestCase):
             r'\[data-theme="dark"\]\[data-palette="([^"]+)"\]\s*\{(.*?)\}',
         )
 
-        claras['predeterminado'] = _parsear_declaraciones(raiz.group(1))
-        oscuras['predeterminado'] = _parsear_declaraciones(
-            oscuro_base.group(1)
-        )
+        # El tema predeterminado (Consultorios) vive en :root.
+        claras['predeterminado'] = {}
+        oscuras['predeterminado'] = {}
 
         self.assertEqual(set(claras), PALETAS_ESPERADAS)
         self.assertEqual(set(oscuras), PALETAS_ESPERADAS)
 
-        texto_primario_claro = claras['predeterminado']['--text-primary']
-        texto_secundario_claro = claras['predeterminado']['--text-secondary']
-        texto_primario_oscuro = oscuras['predeterminado']['--text-primary']
-        texto_secundario_oscuro = oscuras['predeterminado']['--text-secondary']
-
         for clave in PALETAS_ESPERADAS:
+            claro = {**raiz, **claras[clave]}
+            oscuro = {
+                **raiz,
+                **oscuro_base,
+                **claras[clave],
+                **oscuras[clave],
+            }
+
             with self.subTest(paleta=clave, modo='claro'):
-                paleta = claras[clave]
-                fondo_principal = paleta['--bg-main']
-                fondo_tarjeta = paleta.get('--bg-card', '#ffffff')
-                acento = paleta['--accent']
+                fondo_principal = claro['--bg-main']
+                fondo_tarjeta = claro['--bg-card']
+
+                for texto in ('--text-primary', '--text-secondary'):
+                    self.assertGreaterEqual(
+                        _contraste(claro[texto], fondo_principal),
+                        4.5,
+                    )
+                    self.assertGreaterEqual(
+                        _contraste(claro[texto], fondo_tarjeta),
+                        4.5,
+                    )
 
                 self.assertGreaterEqual(
-                    _contraste(texto_primario_claro, fondo_principal),
+                    _contraste(claro['--on-accent'], claro['--accent']),
                     4.5,
                 )
                 self.assertGreaterEqual(
-                    _contraste(texto_secundario_claro, fondo_principal),
+                    _contraste('#ffffff', claro['--sidebar-active']),
                     4.5,
                 )
                 self.assertGreaterEqual(
-                    _contraste(texto_primario_claro, fondo_tarjeta),
+                    _contraste(claro['--accent-text'], fondo_principal),
                     4.5,
                 )
                 self.assertGreaterEqual(
-                    _contraste(texto_secundario_claro, fondo_tarjeta),
+                    _contraste(claro['--accent-text'], fondo_tarjeta),
                     4.5,
                 )
-                self.assertGreaterEqual(
-                    _contraste('#1a2035', acento),
-                    4.5,
-                )
-                if '--accent-text' in paleta:
-                    self.assertGreaterEqual(
-                        _contraste(paleta['--accent-text'], fondo_principal),
-                        4.5,
-                    )
-                    self.assertGreaterEqual(
-                        _contraste(paleta['--accent-text'], fondo_tarjeta),
-                        4.5,
-                    )
 
             with self.subTest(paleta=clave, modo='oscuro'):
-                paleta = oscuras[clave]
-                acento = claras[clave]['--accent']
+                self.assertEqual(
+                    oscuro['--input-bg'],
+                    oscuro['--bg-main'],
+                )
+                self.assertEqual(
+                    oscuro['--hover-row'],
+                    oscuro['--bg-card'],
+                )
 
-                self.assertEqual(
-                    paleta['--input-bg'],
-                    paleta['--bg-main'],
-                )
-                self.assertEqual(
-                    paleta['--hover-row'],
-                    paleta['--bg-card'],
-                )
+                for texto in ('--text-primary', '--text-secondary'):
+                    self.assertGreaterEqual(
+                        _contraste(oscuro[texto], oscuro['--bg-main']),
+                        4.5,
+                    )
+                    self.assertGreaterEqual(
+                        _contraste(oscuro[texto], oscuro['--bg-card']),
+                        4.5,
+                    )
+
                 self.assertGreaterEqual(
-                    _contraste(texto_primario_oscuro, paleta['--bg-main']),
+                    _contraste(oscuro['--on-accent'], oscuro['--accent']),
                     4.5,
                 )
                 self.assertGreaterEqual(
-                    _contraste(texto_secundario_oscuro, paleta['--bg-main']),
+                    _contraste('#ffffff', oscuro['--sidebar-active']),
                     4.5,
                 )
-                self.assertGreaterEqual(
-                    _contraste(texto_primario_oscuro, paleta['--bg-card']),
-                    4.5,
-                )
-                self.assertGreaterEqual(
-                    _contraste(texto_secundario_oscuro, paleta['--bg-card']),
-                    4.5,
-                )
-                self.assertGreaterEqual(
-                    _contraste('#1a2035', acento),
-                    4.5,
-                )
+
+
+class MigracionPaletaDoradoTests(TestCase):
+    def test_migracion_ida_y_vuelta_conserva_el_aspecto_anterior(self):
+        migracion = import_module(
+            'preferencias.migrations.0002_dorado_y_consultorios'
+        )
+
+        usuario_dorado = User.objects.create_user(
+            username='migracion_dorado',
+            password=CLAVE,
+        )
+        usuario_menta = User.objects.create_user(
+            username='migracion_menta',
+            password=CLAVE,
+        )
+        preferencia_dorado = PreferenciaUsuario.objects.create(
+            usuario=usuario_dorado,
+            paleta='predeterminado',
+        )
+        preferencia_menta = PreferenciaUsuario.objects.create(
+            usuario=usuario_menta,
+            paleta='menta',
+        )
+
+        migracion.migrar_predeterminado_a_dorado(django_apps, None)
+
+        preferencia_dorado.refresh_from_db()
+        preferencia_menta.refresh_from_db()
+        self.assertEqual(preferencia_dorado.paleta, 'dorado')
+        self.assertEqual(preferencia_menta.paleta, 'menta')
+
+        migracion.migrar_dorado_a_predeterminado(django_apps, None)
+
+        preferencia_dorado.refresh_from_db()
+        preferencia_menta.refresh_from_db()
+        self.assertEqual(preferencia_dorado.paleta, 'predeterminado')
+        self.assertEqual(preferencia_menta.paleta, 'menta')
+

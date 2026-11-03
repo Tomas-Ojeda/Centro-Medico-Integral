@@ -123,7 +123,7 @@
                 <td style="padding:4px;vertical-align:top;{% if dia %}border:1px solid var(--border);{% endif %}">
                     {% if dia %}
                     <div style="min-height:80px;padding:4px;">
-                        <div style="font-size:12px;font-weight:600;{% if dia.es_hoy %}background:var(--accent);color:#1a2035;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;{% endif %}">
+                        <div style="font-size:12px;font-weight:600;{% if dia.es_hoy %}background:var(--accent);color:var(--on-accent);border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;{% endif %}">
                             {{ dia.dia }}
                         </div>
                         {% for turno in dia.turnos %}

@@ -9,13 +9,19 @@
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         
         :root {
-            --sidebar-bg: #1a2035;
-            --accent: #c9a84c;
-            --accent-light: #e8c97a;
-            --text-primary: #1e293b;
-            --text-secondary: #64748b;
-            --border: #e2e8f0;
+            --sidebar-bg: #14245c;
+            --sidebar-hover: #1f3277;
+            --accent: #2f6fe0;
+            --accent-light: #8fbdf0;
+            --accent-text: #1d4fa8;
+            --on-accent: #ffffff;
+            --text-primary: #1d2b4d;
+            --text-secondary: #4a5a7a;
+            --border: #dbe6f5;
+            --bg-main: #eef4fc;
             --bg-card: #ffffff;
+            --input-bg: #ffffff;
+            --shadow: rgba(30, 60, 140, 0.10);
         }
         
         body {
@@ -68,8 +74,9 @@
             align-items: center;
             justify-content: center;
             font-size: 36px;
+            color: var(--on-accent);
             margin-bottom: 16px;
-            box-shadow: 0 8px 24px rgba(201, 168, 76, 0.3);
+            box-shadow: 0 8px 24px var(--shadow);
         }
         
         .brand h1 {
@@ -129,21 +136,21 @@
             font-size: 15px;
             color: var(--text-primary);
             transition: all 0.2s;
-            background: #f8fafc;
+            background: var(--input-bg);
         }
         
         input:focus {
             outline: none;
             border-color: var(--accent);
-            box-shadow: 0 0 0 4px rgba(201, 168, 76, 0.1);
-            background: #fff;
+            box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 16%, transparent);
+            background: var(--input-bg);
         }
         
         .btn {
             width: 100%;
             padding: 14px;
-            background: var(--sidebar-bg);
-            color: #fff;
+            background: var(--accent);
+            color: var(--on-accent);
             border: none;
             border-radius: 12px;
             font-size: 15px;
@@ -154,9 +161,9 @@
         }
         
         .btn:hover {
-            background: #0f172a;
+            background: color-mix(in srgb, var(--accent) 86%, #000000);
             transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            box-shadow: 0 4px 12px var(--shadow);
         }
         
         .btn:active {

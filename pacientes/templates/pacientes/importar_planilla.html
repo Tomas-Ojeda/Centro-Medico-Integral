@@ -25,7 +25,7 @@
     text-align:center; cursor:pointer; transition:all .2s; background:var(--bg-main);
     position:relative;
 }
-.drop-zone:hover, .drop-zone.drag-over { border-color:var(--sidebar-bg); background:#eef2ff; }
+.drop-zone:hover, .drop-zone.drag-over { border-color:var(--sidebar-bg); background:var(--tile-bg); }
 .drop-zone.loaded { border-color:#16a34a; background:#f0fdf4; }
 .drop-icon { font-size:44px; margin-bottom:12px; }
 .drop-title { font-size:15px; font-weight:600; color:var(--text-primary); margin-bottom:4px; }
@@ -33,7 +33,7 @@
 .preview-img { max-width:100%; max-height:260px; border-radius:8px; margin-top:14px;
     box-shadow:0 4px 16px rgba(0,0,0,.12); }
 
-.spinner { display:inline-block; width:17px; height:17px; border:2px solid #e2e8f0;
+.spinner { display:inline-block; width:17px; height:17px; border:2px solid var(--border);
     border-top-color:var(--sidebar-bg); border-radius:50%; animation:spin .7s linear infinite;
     vertical-align:middle; margin-right:7px; }
 @keyframes spin { to { transform:rotate(360deg); } }

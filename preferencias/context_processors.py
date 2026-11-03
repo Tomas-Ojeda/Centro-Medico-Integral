@@ -1,11 +1,15 @@
-from .models import PreferenciaUsuario
+from .models import PreferenciaUsuario, paletas_disponibles
 
 
 def paleta_usuario(request):
     """Expone la paleta del usuario sin crear registros al leer."""
+    menu = paletas_disponibles()
     user = getattr(request, 'user', None)
     if not user or not user.is_authenticated:
-        return {'paleta_usuario': 'predeterminado'}
+        return {
+            'paleta_usuario': 'predeterminado',
+            'paletas_disponibles': menu,
+        }
 
     paleta = (
         PreferenciaUsuario.objects
@@ -13,4 +17,7 @@ def paleta_usuario(request):
         .values_list('paleta', flat=True)
         .first()
     )
-    return {'paleta_usuario': paleta or 'predeterminado'}
+    return {
+        'paleta_usuario': paleta or 'predeterminado',
+        'paletas_disponibles': menu,
+    }

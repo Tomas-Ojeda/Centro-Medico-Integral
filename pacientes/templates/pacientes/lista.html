@@ -38,8 +38,8 @@
             {% for paciente in pacientes %}
             <a href="{% url 'pacientes:detalle' paciente.pk %}"
                style="display:flex;align-items:center;gap:10px;padding:10px;border-radius:8px;text-decoration:none;color:inherit;margin-bottom:2px;{% if selected_pk == paciente.pk %}background:var(--sidebar-bg);color:#fff;{% endif %}"
-               onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='{% if selected_pk == paciente.pk %}var(--sidebar-bg){% endif %}'">
-                <div class="patient-avatar" style="width:38px;height:38px;font-size:14px;{% if selected_pk == paciente.pk %}background:#2d3a56;{% endif %}">
+               onmouseover="this.style.background='var(--hover-row)'" onmouseout="this.style.background='{% if selected_pk == paciente.pk %}var(--sidebar-bg){% endif %}'">
+                <div class="patient-avatar" style="width:38px;height:38px;font-size:14px;{% if selected_pk == paciente.pk %}background:var(--sidebar-active);{% endif %}">
                     {{ paciente.iniciales }}
                 </div>
                 <div style="flex:1;min-width:0;">

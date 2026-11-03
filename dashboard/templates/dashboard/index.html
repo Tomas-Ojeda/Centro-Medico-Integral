@@ -98,7 +98,7 @@
     <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-top:8px;">
         {% for dia in semana %}
         <a href="{% url 'turnos:agenda' %}?fecha={{ dia.fecha|date:'Y-m-d' }}"
-           style="text-decoration:none;text-align:center;padding:10px 6px;border-radius:8px;border:1px solid {% if dia.es_hoy %}var(--sidebar-bg){% else %}var(--border){% endif %};background:{% if dia.es_hoy %}#eef2ff{% else %}transparent{% endif %};">
+           style="text-decoration:none;text-align:center;padding:10px 6px;border-radius:8px;border:1px solid {% if dia.es_hoy %}var(--sidebar-bg){% else %}var(--border){% endif %};background:{% if dia.es_hoy %}var(--tile-bg){% else %}transparent{% endif %};">
             <div style="font-size:11px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;">{{ dia.nombre }}</div>
             <div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px;">{{ dia.fecha|date:"d/m" }}</div>
             <div style="font-size:22px;font-weight:700;color:{% if dia.es_hoy %}var(--sidebar-bg){% else %}var(--text-primary){% endif %};">{{ dia.total }}</div>
