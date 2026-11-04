@@ -1,0 +1,37 @@
+{% extends 'registration/auth_base.html' %}
+{% load static %}
+
+{% block title %}Acceso bloqueado — {{ NOMBRE_CENTRO }}{% endblock %}
+
+{% block auth_content %}
+{% include 'registration/_brand.html' %}
+
+<section class="login-card" aria-labelledby="lockout-title">
+    <div class="card-icon" aria-hidden="true">
+        <img class="card-logo--color" src="{% static 'img/logo-color.png' %}" alt="" width="605" height="512" decoding="async">
+        <img class="card-logo--white" src="{% static 'img/logo-blanco-256.png' %}" alt="" width="303" height="256" decoding="async">
+    </div>
+
+    <h2 class="card-title" id="lockout-title">Acceso bloqueado</h2>
+    <p class="subtitle">Por seguridad, se bloqueó el ingreso después de varios intentos fallidos.</p>
+
+    <div class="form-alert" role="alert">
+        <i class="fas fa-lock" aria-hidden="true"></i>
+        <div>
+            <p>Esperá unos minutos antes de volver a intentar.</p>
+            {% if failure_limit %}<p class="lockout-note">Límite de intentos: {{ failure_limit }}.</p>{% endif %}
+        </div>
+    </div>
+
+    <p class="lockout-note">
+        Si necesitás ayuda para recuperar el acceso, comunicate con el centro.
+    </p>
+
+    <div class="lockout-actions">
+        <a class="btn-submit" href="{% url 'login' %}">
+            <span>Volver al inicio de sesión</span>
+            <i class="fas fa-arrow-left btn-arrow" aria-hidden="true"></i>
+        </a>
+    </div>
+</section>
+{% endblock %}

@@ -106,6 +106,7 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 MEDIA_URL = '/media/'
 # Configurable para montar un Persistent Disk en producción.
 MEDIA_ROOT = Path(os.environ.get('MEDIA_ROOT', str(BASE_DIR / 'media')))
@@ -127,6 +128,7 @@ AXES_LOCKOUT_PARAMETERS = ['ip_address', 'username']
 AXES_IPWARE_PROXY_COUNT = 1  # Render usa 1 proxy
 AXES_IPWARE_META_PRECEDENCE_ORDER = ('HTTP_X_FORWARDED_FOR', 'REMOTE_ADDR')
 AXES_RESET_ON_SUCCESS = True  # Resetear contador al loguearse bien
+AXES_LOCKOUT_TEMPLATE = 'registration/lockout.html'  # Mismo estilo que el login
 
 # ─── Importación de planillas ──────────────────────────────────
 # La API key se lee de la variable de entorno ANTHROPIC_API_KEY
