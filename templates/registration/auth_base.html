@@ -39,6 +39,7 @@
             /* Superficies y texto derivados de la marca. */
             --login-bg-start: color-mix(in srgb, var(--brand-sky) 8%, #ffffff);
             --login-bg-end: color-mix(in srgb, var(--brand-sky) 26%, #ffffff);
+            --login-shell: color-mix(in srgb, var(--brand-sky) 12%, #ffffff);
             --login-card: #ffffff;
             --login-text: #1d2b4d;
             --login-text-soft: #4a5a7a;
@@ -49,6 +50,10 @@
             --login-tile-ring: color-mix(in srgb, var(--brand-blue) 22%, transparent);
             --login-focus: var(--brand-blue);
             --login-heart: color-mix(in srgb, var(--brand-blue) 26%, transparent);
+            --login-photo-opacity: 0.55;
+            --login-veil-start: 96%;
+            --login-veil-mid: 42%;
+            --login-veil-end: 18%;
 
             /* Decoraciones: siempre desde variables. */
             --deco-fill: color-mix(in srgb, var(--brand-indigo) 88%, var(--brand-blue));
@@ -69,11 +74,14 @@
             --radius-card: 28px;
             --radius-ctl: 12px;
             --shadow-card: 0 24px 70px var(--login-shadow), 0 2px 6px color-mix(in srgb, var(--brand-navy) 8%, transparent);
+            --frame-pad: clamp(10px, 1.8vw, 26px);
+            --frame-radius: clamp(22px, 2.4vw, 36px);
         }
 
         [data-theme="dark"] {
             --login-bg-start: #081126;
             --login-bg-end: #0f1f42;
+            --login-shell: #0b1430;
             --login-card: #101c3d;
             --login-text: #e6eeff;
             --login-text-soft: #a9b8d9;
@@ -84,6 +92,10 @@
             --login-tile-ring: color-mix(in srgb, var(--brand-sky) 24%, transparent);
             --login-focus: var(--brand-sky);
             --login-heart: color-mix(in srgb, var(--brand-sky) 18%, transparent);
+            --login-photo-opacity: 0.3;
+            --login-veil-start: 94%;
+            --login-veil-mid: 62%;
+            --login-veil-end: 38%;
 
             --deco-fill: color-mix(in srgb, var(--brand-blue) 42%, #0b1430);
             --deco-fill-soft: color-mix(in srgb, var(--brand-indigo) 40%, #0b1430);
@@ -107,6 +119,7 @@
         }
         body {
             min-height: 100dvh;
+            padding: var(--frame-pad);
             background:
                 radial-gradient(circle at 18% 8%, color-mix(in srgb, var(--brand-sky) 18%, transparent), transparent 42%),
                 linear-gradient(155deg, var(--login-bg-start) 0%, var(--login-bg-end) 100%);
@@ -125,33 +138,73 @@
             outline-offset: 2px;
         }
 
-        /* ===== DECORACIONES ===== */
-        .deco {
-            position: fixed;
-            z-index: 0;
-            pointer-events: none;
-            width: min(560px, 46vw);
-            opacity: 0.95;
+        /* ===== MARCO REDONDEADO CON FOTO DIFUMINADA ===== */
+        .login-shell {
+            position: relative;
+            isolation: isolate;
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            min-height: calc(100dvh - (var(--frame-pad) * 2));
+            border: 1px solid color-mix(in srgb, var(--login-border) 72%, transparent);
+            border-radius: var(--frame-radius);
+            background: var(--login-shell);
+            box-shadow: 0 28px 80px color-mix(in srgb, var(--brand-navy) 16%, transparent),
+                        0 2px 8px color-mix(in srgb, var(--brand-navy) 8%, transparent);
+            overflow: hidden;
         }
-        .deco--top { top: 0; left: 0; }
-        .deco--bottom {
+        [data-theme="dark"] .login-shell {
+            box-shadow: 0 28px 80px rgba(0, 0, 0, 0.55), 0 2px 8px rgba(0, 0, 0, 0.4);
+        }
+        .login-photo {
+            position: absolute;
+            inset: 0;
+            z-index: -2;
+            background: url("{% static 'img/fondo-consultorio.jpg' %}") center / cover no-repeat;
+            opacity: var(--login-photo-opacity);
+            pointer-events: none;
+        }
+        .login-veil {
+            position: absolute;
+            inset: 0;
+            z-index: -1;
+            background: linear-gradient(
+                100deg,
+                color-mix(in srgb, var(--login-shell) var(--login-veil-start), transparent) 0%,
+                color-mix(in srgb, var(--login-shell) 88%, transparent) 34%,
+                color-mix(in srgb, var(--login-shell) var(--login-veil-mid), transparent) 66%,
+                color-mix(in srgb, var(--login-shell) var(--login-veil-end), transparent) 100%
+            );
+            pointer-events: none;
+        }
+
+        /* ===== FRANJAS CURVAS ===== */
+        .shell-deco {
+            position: absolute;
+            z-index: 0;
+            width: 100%;
+            height: clamp(180px, 24vw, 330px);
+            pointer-events: none;
+        }
+        .shell-deco--top { top: 0; left: 0; }
+        .shell-deco--bottom {
             right: 0;
             bottom: 0;
             transform: rotate(180deg);
         }
-        .deco svg { display: block; width: 100%; height: auto; }
+        .shell-deco svg { display: block; width: 100%; height: 100%; }
 
         .heartbeat {
-            position: fixed;
-            top: 50%;
-            left: 50%;
+            position: absolute;
+            top: 44%;
+            left: 36%;
             z-index: 0;
-            width: min(760px, 56vw);
-            transform: translate(-92%, -50%);
+            width: min(560px, 40vw);
+            transform: translateY(-50%);
             pointer-events: none;
-            opacity: 0.55;
-            -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 16%, #000 84%, transparent 100%);
-            mask-image: linear-gradient(90deg, transparent 0%, #000 16%, #000 84%, transparent 100%);
+            opacity: 0.5;
+            -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 14%, #000 84%, transparent 100%);
+            mask-image: linear-gradient(90deg, transparent 0%, #000 14%, #000 84%, transparent 100%);
         }
         .heartbeat svg { display: block; width: 100%; height: auto; }
 
@@ -159,22 +212,21 @@
         .login-page {
             position: relative;
             z-index: 1;
-            min-height: 100dvh;
+            flex: 1;
             display: grid;
             place-items: center;
-            padding: calc(40px + env(safe-area-inset-top, 0px))
-                     clamp(24px, 5vw, 72px)
-                     calc(40px + env(safe-area-inset-bottom, 0px))
-                     clamp(24px, 5vw, 72px);
+            padding: clamp(36px, 6vh, 76px)
+                     clamp(24px, 6vw, 92px)
+                     clamp(16px, 3vh, 40px);
         }
         .login-layout {
             width: 100%;
-            max-width: 1080px;
+            max-width: 1180px;
             display: grid;
-            grid-template-columns: minmax(0, 420px) minmax(0, 1fr);
+            grid-template-columns: minmax(0, 440px) minmax(0, 1fr);
             grid-template-areas: "card brand";
             align-items: center;
-            gap: clamp(40px, 7vw, 96px);
+            gap: clamp(40px, 6vw, 88px);
         }
 
         /* ===== TARJETA ===== */
@@ -185,7 +237,7 @@
             border: 1px solid color-mix(in srgb, var(--login-border) 70%, transparent);
             border-radius: var(--radius-card);
             box-shadow: var(--shadow-card);
-            padding: 40px 36px 30px;
+            padding: 40px 32px 30px;
         }
         .card-icon {
             width: 66px;
@@ -200,11 +252,8 @@
         .card-icon img {
             width: 50px;
             height: auto;
-            border-radius: 10px;
             display: block;
         }
-        /* En modo claro el blanco del PNG se funde con la celeste del recuadro. */
-        .card-icon img.card-logo--color { mix-blend-mode: multiply; }
         .card-icon img.card-logo--white { display: none; }
         [data-theme="dark"] .card-icon img.card-logo--color { display: none; }
         [data-theme="dark"] .card-icon img.card-logo--white { display: block; }
@@ -365,25 +414,31 @@
             border-top: 1px solid var(--login-border);
         }
         .contacts-list {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 0 8px;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: 0;
         }
         .contact-link {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            gap: 7px;
+            gap: 6px;
             min-height: 44px;
-            padding: 0 3px;
+            padding: 0 8px;
             border-radius: 8px;
             color: var(--login-text-soft);
-            font-size: 13px;
+            font-size: 12.5px;
             text-decoration: none;
+        }
+        .contact-link + .contact-link {
+            border-left: 1px solid var(--login-border);
         }
         .contact-link i { font-size: 14px; color: var(--brand-blue); }
         .contact-link:hover { color: var(--login-text); }
         .contact-link:hover i { color: var(--brand-navy); }
+        [data-theme="dark"] .contact-link:hover i { color: var(--brand-sky); }
 
         /* ===== MARCA (DERECHA) ===== */
         .brand {
@@ -396,14 +451,10 @@
             gap: 0;
         }
         .brand-icon {
-            width: clamp(150px, 16vw, 190px);
+            width: clamp(150px, 16vw, 200px);
             height: auto;
             display: block;
             margin-bottom: 26px;
-        }
-        .brand-icon--color {
-            border-radius: 24px;
-            box-shadow: 0 14px 34px color-mix(in srgb, var(--brand-navy) 14%, transparent);
         }
         .brand-icon--white { display: none; }
         [data-theme="dark"] .brand-icon--color { display: none; }
@@ -411,11 +462,12 @@
         .brand-text > h1 {
             font-family: Georgia, 'Times New Roman', serif;
             font-weight: 400;
-            font-size: clamp(23px, 2.7vw, 34px);
+            font-size: clamp(24px, 2.8vw, 36px);
             line-height: 1.2;
             letter-spacing: 0.16em;
             text-transform: uppercase;
             color: var(--login-text);
+            text-shadow: 0 1px 0 color-mix(in srgb, var(--login-shell) 70%, transparent);
         }
         .brand-rule {
             display: inline-block;
@@ -438,12 +490,35 @@
         }
         [data-theme="dark"] .brand-coop { color: var(--brand-sky); }
         .brand-coop > p { margin: 0; }
-        .brand-address {
-            margin-top: 10px;
-            font-size: 12.5px;
-            letter-spacing: 0.02em;
-            color: var(--login-text-soft);
+
+        /* ===== PIE DEL MARCO ===== */
+        .login-foot {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: clamp(12px, 2vw, 22px);
+            padding: 0 clamp(24px, 6vw, 92px) clamp(16px, 2.6vh, 28px);
         }
+        .login-foot-line {
+            width: min(180px, 16vw);
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--login-border));
+        }
+        .login-foot-line:last-child {
+            background: linear-gradient(90deg, var(--login-border), transparent);
+        }
+        .login-foot p {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            letter-spacing: 0.01em;
+            color: var(--login-text-soft);
+            text-align: center;
+        }
+        .login-foot i { color: var(--brand-blue); }
 
         /* ===== BLOQUEO (AXES) ===== */
         .lockout-note {
@@ -456,14 +531,16 @@
 
         /* ===== RESPONSIVE (<900px) ===== */
         @media (max-width: 899px) {
-            .deco { width: min(260px, 52vw); opacity: 0.8; }
+            .shell-deco { height: clamp(130px, 30vw, 190px); }
             .heartbeat { display: none; }
 
+            .login-shell {
+                border-radius: 24px;
+                min-height: calc(100dvh - (var(--frame-pad) * 2));
+            }
             .login-page {
                 display: block;
-                padding: calc(16px + env(safe-area-inset-top, 0px))
-                         clamp(14px, 4vw, 22px)
-                         calc(24px + env(safe-area-inset-bottom, 0px));
+                padding: 18px clamp(14px, 4vw, 22px) 8px;
             }
             .login-layout {
                 display: flex;
@@ -482,7 +559,7 @@
                 border-radius: 16px;
                 box-shadow: 0 10px 24px color-mix(in srgb, var(--login-shadow) 55%, transparent);
             }
-            .brand-icon { width: 40px; margin: 0; border-radius: 0; box-shadow: none; }
+            .brand-icon { width: 40px; margin: 0; }
             .brand-icon--color { display: block; }
             .brand-icon--white { display: none; }
             [data-theme="dark"] .brand-icon--color { display: none; }
@@ -491,8 +568,9 @@
                 font-size: clamp(14px, 4vw, 17px);
                 letter-spacing: 0.12em;
                 text-align: left;
+                text-shadow: none;
             }
-            .brand-rule, .brand-coop, .brand-address { display: none; }
+            .brand-rule, .brand-coop { display: none; }
 
             .login-card {
                 padding: 28px 24px 22px;
@@ -502,7 +580,24 @@
             .card-icon img { width: 44px; }
             .login-form { margin-top: 22px; }
             .contacts { margin-top: 22px; }
-            .contacts-list { gap: 0 6px; }
+            .contacts-list {
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 0 6px;
+            }
+            .contact-link + .contact-link { border-left: 0; }
+
+            .login-foot {
+                padding: 4px 18px 16px;
+                gap: 12px;
+            }
+            .login-foot-line { display: none; }
+            .login-foot p {
+                font-size: 11.5px;
+                padding: 6px 12px;
+                border-radius: 999px;
+                background: color-mix(in srgb, var(--login-shell) 82%, transparent);
+            }
         }
 
         /* Dos zonas ajustadas: el nombre entra en una línea desde 900px. */
@@ -511,14 +606,14 @@
                 font-size: clamp(19px, 2.1vw, 22px);
                 letter-spacing: 0.1em;
             }
-            .brand-address { font-size: 12px; text-wrap: balance; }
         }
 
         @media (max-width: 380px) {
+            :root { --frame-pad: 8px; }
             .login-page { padding-left: 12px; padding-right: 12px; }
             .login-card { padding: 24px 18px 18px; }
             .card-title { font-size: 24px; }
-            .contact-link { font-size: 12.5px; }
+            .contact-link { font-size: 12.5px; padding: 0 8px; }
         }
 
         /* Pantallas horizontales de poca altura: se prioriza el scroll. */
@@ -539,52 +634,66 @@
     </style>
 </head>
 <body>
-    <!-- Franja curva superior izquierda -->
-    <div class="deco deco--top" aria-hidden="true">
-        <svg viewBox="0 0 560 460" preserveAspectRatio="none" focusable="false">
-            <defs>
-                <linearGradient id="deco-top-grad" x1="0" y1="0" x2="1" y2="1">
-                    <stop offset="0" style="stop-color: var(--deco-fill)"></stop>
-                    <stop offset="1" style="stop-color: var(--deco-fill-soft)"></stop>
-                </linearGradient>
-            </defs>
-            <path d="M0 0 H560 C520 118 420 168 280 168 C150 168 70 108 0 44 Z"
-                  fill="url(#deco-top-grad)"></path>
-            <path d="M0 48 C70 112 150 172 280 172 C420 172 520 124 560 4"
-                  fill="none" style="stroke: var(--deco-line)" stroke-width="1.5"></path>
-        </svg>
-    </div>
+    <div class="login-shell">
+        <div class="login-photo" aria-hidden="true"></div>
+        <div class="login-veil" aria-hidden="true"></div>
 
-    <!-- Franja curva inferior derecha (espejada) -->
-    <div class="deco deco--bottom" aria-hidden="true">
-        <svg viewBox="0 0 560 460" preserveAspectRatio="none" focusable="false">
-            <defs>
-                <linearGradient id="deco-bottom-grad" x1="0" y1="0" x2="1" y2="1">
-                    <stop offset="0" style="stop-color: var(--deco-fill)"></stop>
-                    <stop offset="1" style="stop-color: var(--deco-fill-soft)"></stop>
-                </linearGradient>
-            </defs>
-            <path d="M0 0 H560 C520 118 420 168 280 168 C150 168 70 108 0 44 Z"
-                  fill="url(#deco-bottom-grad)"></path>
-            <path d="M0 48 C70 112 150 172 280 172 C420 172 520 124 560 4"
-                  fill="none" style="stroke: var(--deco-line)" stroke-width="1.5"></path>
-        </svg>
-    </div>
-
-    <!-- Línea de latido tenue detrás de la tarjeta -->
-    <div class="heartbeat" aria-hidden="true">
-        <svg viewBox="0 0 1000 120" preserveAspectRatio="none" focusable="false">
-            <path d="M0 60 H230 l16 -12 l11 30 l13 -54 l12 82 l12 -46 l10 10 H470 l15 -10 l9 22 l12 -34 l11 56 l11 -34 H760 l14 -9 l8 18 l11 -28 l10 44 l10 -25 H1000"
-                  fill="none" style="stroke: var(--login-heart)" stroke-width="1.4"
-                  stroke-linecap="round" stroke-linejoin="round"></path>
-        </svg>
-    </div>
-
-    <main class="login-page">
-        <div class="login-layout">
-            {% block auth_content %}{% endblock %}
+        <!-- Franja curva superior -->
+        <div class="shell-deco shell-deco--top" aria-hidden="true">
+            <svg viewBox="0 0 1600 400" preserveAspectRatio="none" focusable="false">
+                <defs>
+                    <linearGradient id="shell-top-grad" x1="0" y1="0" x2="1" y2="0">
+                        <stop offset="0" style="stop-color: var(--deco-fill)" stop-opacity="0.92"></stop>
+                        <stop offset="0.5" style="stop-color: var(--deco-fill-soft)" stop-opacity="0.55"></stop>
+                        <stop offset="1" style="stop-color: var(--deco-fill-soft)" stop-opacity="0"></stop>
+                    </linearGradient>
+                </defs>
+                <path d="M0 0 H1600 V22 C1460 62 1330 134 1170 182 C990 236 780 258 570 252 C350 246 140 208 0 144 Z"
+                      fill="url(#shell-top-grad)"></path>
+                <path d="M0 148 C140 212 350 250 570 256 C780 262 990 240 1170 186 C1330 138 1460 66 1600 26"
+                      fill="none" style="stroke: var(--deco-line)" stroke-width="1.5"></path>
+            </svg>
         </div>
-    </main>
+
+        <!-- Franja curva inferior (espejada) -->
+        <div class="shell-deco shell-deco--bottom" aria-hidden="true">
+            <svg viewBox="0 0 1600 400" preserveAspectRatio="none" focusable="false">
+                <defs>
+                    <linearGradient id="shell-bottom-grad" x1="0" y1="0" x2="1" y2="0">
+                        <stop offset="0" style="stop-color: var(--deco-fill)" stop-opacity="0.92"></stop>
+                        <stop offset="0.5" style="stop-color: var(--deco-fill-soft)" stop-opacity="0.55"></stop>
+                        <stop offset="1" style="stop-color: var(--deco-fill-soft)" stop-opacity="0"></stop>
+                    </linearGradient>
+                </defs>
+                <path d="M0 0 H1600 V22 C1460 62 1330 134 1170 182 C990 236 780 258 570 252 C350 246 140 208 0 144 Z"
+                      fill="url(#shell-bottom-grad)"></path>
+                <path d="M0 148 C140 212 350 250 570 256 C780 262 990 240 1170 186 C1330 138 1460 66 1600 26"
+                      fill="none" style="stroke: var(--deco-line)" stroke-width="1.5"></path>
+            </svg>
+        </div>
+
+        <!-- Línea de latido tenue detrás de la tarjeta -->
+        <div class="heartbeat" aria-hidden="true">
+            <svg viewBox="0 0 1000 120" preserveAspectRatio="none" focusable="false">
+                <path d="M0 60 H230 l16 -12 l11 30 l13 -54 l12 82 l12 -46 l10 10 H470 l15 -10 l9 22 l12 -34 l11 56 l11 -34 H760 l14 -9 l8 18 l11 -28 l10 44 l10 -25 H1000"
+                      fill="none" style="stroke: var(--login-heart)" stroke-width="1.4"
+                      stroke-linecap="round" stroke-linejoin="round"></path>
+            </svg>
+        </div>
+
+        <main class="login-page">
+            <div class="login-layout">
+                {% block auth_content %}{% endblock %}
+            </div>
+        </main>
+
+        <footer class="login-foot">
+            <span class="login-foot-line" aria-hidden="true"></span>
+            <p><i class="fas fa-map-marker-alt" aria-hidden="true"></i>
+                Mendoza, San Rafael, Salto de las Rosas &middot; Ruta Nacional 143</p>
+            <span class="login-foot-line" aria-hidden="true"></span>
+        </footer>
+    </div>
 
     {% block scripts %}{% endblock %}
 </body>

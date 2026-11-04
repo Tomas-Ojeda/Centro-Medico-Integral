@@ -11,6 +11,8 @@ from consultorio_salto.permisos import GRUPO_RECEPCION
 
 ASSETS = (
     'img/logo-color.png',
+    'img/logo-color-transparente.png',
+    'img/fondo-consultorio.jpg',
     'img/logo-blanco-256.png',
     'img/logo-blanco-512.png',
     'img/favicon-32.png',

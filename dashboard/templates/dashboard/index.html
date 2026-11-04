@@ -6,12 +6,282 @@
 {% block page_title %}Dashboard{% endblock %}
 {% block page_subtitle %}Resumen del día · {{ hoy|date:"l d \d\e F, Y" }}{% endblock %}
 
+{% block header_deco %}
+<svg viewBox="0 0 640 80" fill="none" preserveAspectRatio="none" focusable="false">
+    <defs>
+        <linearGradient id="header-beat-grad" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" style="stop-color: var(--accent)" stop-opacity="0.85"></stop>
+            <stop offset="0.55" style="stop-color: var(--accent)" stop-opacity="0.4"></stop>
+            <stop offset="1" style="stop-color: var(--accent)" stop-opacity="0"></stop>
+        </linearGradient>
+    </defs>
+    <path d="M0 38 H150 l8 -7 l6 15 l7 -30 l7 44 l7 -24 l6 8 H330 l8 -6 l5 12 l7 -20 l6 30 l6 -18 H640"
+          style="stroke: url(#header-beat-grad)" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round"></path>
+    <path d="M400 58 H462 l5 -5 l4 10 l5 -18 l4 24 l5 -14 l4 5 H640"
+          style="stroke: url(#header-beat-grad)" stroke-width="1.4"
+          stroke-linecap="round" stroke-linejoin="round" opacity="0.6"></path>
+</svg>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* ===== DASHBOARD V3 ===== */
+    .dash-card-title {
+        display: inline-flex;
+        align-items: center;
+        gap: 9px;
+    }
+    .dash-card-title i {
+        font-size: 15px;
+        color: var(--accent-text);
+    }
+    [data-theme="dark"] .dash-card-title i { color: var(--accent); }
+
+    /* Caja diaria */
+    .caja-form {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+    .caja-form input[type=date] {
+        width: auto;
+        min-width: 150px;
+        height: 38px;
+        padding: 0 14px;
+        border-radius: 999px;
+    }
+    .caja-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(165px, 1fr));
+        gap: 12px;
+    }
+    .caja-mini {
+        padding: 14px 16px;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        background: var(--bg-main);
+    }
+    .caja-mini-label {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        font-size: 10.5px;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: var(--text-secondary);
+    }
+    .caja-mini-value {
+        margin-top: 6px;
+        font-size: 22px;
+        font-weight: 700;
+        line-height: 1.1;
+        color: var(--text-primary);
+    }
+    .caja-mini--efectivo {
+        background: color-mix(in srgb, #22c55e 10%, var(--bg-card));
+        border-color: color-mix(in srgb, #22c55e 32%, var(--border));
+    }
+    .caja-mini--efectivo .caja-mini-label i,
+    .caja-mini--efectivo .caja-mini-value { color: #15803d; }
+    [data-theme="dark"] .caja-mini--efectivo .caja-mini-label i,
+    [data-theme="dark"] .caja-mini--efectivo .caja-mini-value { color: #4ade80; }
+    .caja-mini--transferencia {
+        background: var(--tile-bg);
+        border-color: color-mix(in srgb, var(--accent) 24%, var(--border));
+    }
+    .caja-mini--transferencia .caja-mini-label i { color: var(--accent-text); }
+    [data-theme="dark"] .caja-mini--transferencia .caja-mini-label i { color: var(--accent); }
+    .caja-mini--total {
+        border: 2px solid var(--accent);
+        background: var(--bg-card);
+    }
+    .caja-mini--total .caja-mini-value { color: var(--accent-text); }
+    [data-theme="dark"] .caja-mini--total .caja-mini-value { color: var(--accent); }
+    .caja-mini--turnos { background: var(--bg-main); }
+    .caja-mini--turnos .caja-mini-label i { color: var(--accent-text); }
+    [data-theme="dark"] .caja-mini--turnos .caja-mini-label i { color: var(--accent); }
+    .caja-note {
+        margin-top: 12px;
+        font-size: 11px;
+        font-style: italic;
+        color: var(--text-secondary);
+    }
+
+    /* Enlaces en píldora */
+    .pill-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        min-height: 34px;
+        padding: 0 13px;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        color: var(--text-secondary);
+        font-size: 12px;
+        font-weight: 600;
+        text-decoration: none;
+        white-space: nowrap;
+        transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    .pill-link:hover {
+        background: var(--bg-main);
+        border-color: var(--accent);
+        color: var(--accent-text);
+    }
+    [data-theme="dark"] .pill-link:hover { color: var(--accent); }
+
+    /* Semana */
+    .week-grid { gap: 10px; }
+    .week-day {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+        padding: 14px 8px 12px;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        background: var(--bg-card);
+        color: inherit;
+        text-decoration: none;
+        transition: border-color 0.15s, background 0.15s;
+    }
+    .week-day:hover {
+        border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+    }
+    .week-day.is-today {
+        border: 2px solid var(--accent);
+        background: color-mix(in srgb, var(--accent) 9%, var(--bg-card));
+        padding: 13px 7px 11px;
+    }
+    .week-day-name {
+        font-size: 10.5px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--text-secondary);
+    }
+    .week-day-date { font-size: 11.5px; color: var(--text-secondary); }
+    .week-day-count {
+        margin-top: 4px;
+        font-size: 24px;
+        font-weight: 700;
+        line-height: 1;
+        color: var(--text-primary);
+    }
+    .week-day.is-today .week-day-count { color: var(--accent-text); }
+    [data-theme="dark"] .week-day.is-today .week-day-count { color: var(--accent); }
+    .week-day-done {
+        margin-top: 3px;
+        font-size: 10px;
+        font-weight: 600;
+        color: #16a34a;
+    }
+    [data-theme="dark"] .week-day-done { color: #4ade80; }
+
+    /* Estado vacío de la agenda */
+    .agenda-empty { padding: 34px 16px 26px; text-align: center; }
+    .agenda-empty svg {
+        width: 132px;
+        height: auto;
+        margin: 0 auto 14px;
+        display: block;
+    }
+    .agenda-empty h3 {
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 6px;
+    }
+    .agenda-empty p {
+        font-size: 12.5px;
+        color: var(--text-secondary);
+        margin-bottom: 16px;
+    }
+    .agenda-empty .btn { min-height: 40px; }
+
+    /* Accesos rápidos */
+    .quick-actions {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+    }
+    .quick-action {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        min-height: 46px;
+        padding: 0 12px;
+        border: 1px solid transparent;
+        border-radius: 12px;
+        font-size: 13px;
+        font-weight: 600;
+        text-align: center;
+        text-decoration: none;
+        transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    .quick-action i { font-size: 14px; }
+    .quick-action--primary { background: var(--sidebar-bg); color: #fff; }
+    .quick-action--primary:hover { background: var(--sidebar-hover); color: #fff; }
+    .quick-action--secondary {
+        background: var(--tile-bg);
+        border-color: color-mix(in srgb, var(--accent) 30%, transparent);
+        color: var(--accent-text);
+    }
+    .quick-action--secondary:hover {
+        background: color-mix(in srgb, var(--accent) 22%, var(--bg-card));
+        color: var(--accent-text);
+    }
+    [data-theme="dark"] .quick-action--secondary { color: var(--accent); }
+    .quick-action--tertiary {
+        background: transparent;
+        border-color: var(--border);
+        color: var(--text-primary);
+    }
+    .quick-action--tertiary:hover {
+        background: var(--bg-main);
+        border-color: var(--accent);
+        color: var(--text-primary);
+    }
+
+    .dash-grid { align-items: start; }
+
+    /* Listas compactas */
+    .list-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 9px 0;
+        border-bottom: 1px solid var(--border);
+        font-size: 13px;
+    }
+    .list-row:last-child { border-bottom: none; }
+    .list-empty { color: var(--text-secondary); font-size: 13px; margin-top: 8px; }
+    .row-muted { color: var(--text-secondary); }
+    .row-chevron { color: var(--text-secondary); }
+
+    @media (max-width: 900px) {
+        .caja-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .caja-form input[type=date] { flex: 1 1 140px; min-width: 0; }
+        .week-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+        .week-day { padding: 10px 6px; }
+        .week-day.is-today { padding: 9px 5px; }
+        .week-day-count { font-size: 20px; }
+        .quick-actions { grid-template-columns: 1fr; }
+        .pill-link { min-height: 40px; }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 
-<!-- STATS CARDS -->
+<!-- TARJETAS DE ESTADÍSTICAS -->
 <div class="stats-grid">
     <div class="stat-card">
-        <div class="stat-icon blue">👤</div>
+        <div class="stat-icon blue"><i class="fas fa-users" aria-hidden="true"></i></div>
         <div>
             <div class="stat-value">{{ total_pacientes }}</div>
             <div class="stat-label">{% if es_profesional %}Pacientes que atendés{% else %}Pacientes registrados{% endif %}</div>
@@ -19,7 +289,7 @@
     </div>
     {% if es_recepcion %}
     <div class="stat-card">
-        <div class="stat-icon green">🩺</div>
+        <div class="stat-icon green"><i class="fas fa-user-doctor" aria-hidden="true"></i></div>
         <div>
             <div class="stat-value">{{ total_profesionales }}</div>
             <div class="stat-label">Profesionales activos</div>
@@ -27,14 +297,14 @@
     </div>
     {% endif %}
     <div class="stat-card">
-        <div class="stat-icon amber">📅</div>
+        <div class="stat-icon amber"><i class="fas fa-calendar-day" aria-hidden="true"></i></div>
         <div>
             <div class="stat-value">{{ turnos_hoy }}</div>
             <div class="stat-label">Turnos hoy</div>
         </div>
     </div>
     <div class="stat-card">
-        <div class="stat-icon purple">⏳</div>
+        <div class="stat-icon purple"><i class="fas fa-hourglass-half" aria-hidden="true"></i></div>
         <div>
             <div class="stat-value">{{ turnos_pendientes }}</div>
             <div class="stat-label">Pendientes de confirmar</div>
@@ -42,7 +312,7 @@
     </div>
     {% if es_profesional %}
     <div class="stat-card">
-        <div class="stat-icon blue">🔀</div>
+        <div class="stat-icon blue"><i class="fas fa-share-from-square" aria-hidden="true"></i></div>
         <div>
             <div class="stat-value">{{ derivaciones_pendientes }}</div>
             <div class="stat-label">Derivaciones pendientes</div>
@@ -53,70 +323,87 @@
 
 {% if es_recepcion %}
 <!-- CAJA DEL DÍA -->
-<div class="card" style="margin-bottom:20px;">
-    <div class="card-header" style="flex-wrap:wrap;gap:12px;">
-        <span class="card-title">💵 Caja del día</span>
-        <form method="get" style="display:flex;align-items:center;gap:8px;">
+<div class="card">
+    <div class="card-header">
+        <span class="card-title dash-card-title">
+            <i class="fas fa-cash-register" aria-hidden="true"></i> Caja del día
+        </span>
+        <form method="get" class="caja-form">
             <input type="date" name="fecha_caja" value="{{ caja_fecha|date:'Y-m-d' }}"
-                   onchange="this.form.submit()" style="width:auto;min-width:150px;"
+                   onchange="this.form.submit()"
                    aria-label="Fecha de la caja">
             {% if caja_fecha != hoy %}
             <a href="{% url 'dashboard:index' %}" class="btn btn-outline btn-sm">Hoy</a>
             {% endif %}
         </form>
     </div>
-    <div class="grid-auto">
-        <div style="padding:12px;border:1px solid var(--border);border-radius:10px;background:var(--bg-main);">
-            <div style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.04em;">Efectivo</div>
-            <div style="font-size:20px;font-weight:700;color:var(--text-primary);margin-top:4px;">${{ caja.efectivo|pesos }}</div>
+    <div class="caja-grid">
+        <div class="caja-mini caja-mini--efectivo">
+            <div class="caja-mini-label">
+                <i class="fas fa-money-bill-wave" aria-hidden="true"></i> Efectivo
+            </div>
+            <div class="caja-mini-value">${{ caja.efectivo|pesos }}</div>
         </div>
-        <div style="padding:12px;border:1px solid var(--border);border-radius:10px;background:var(--bg-main);">
-            <div style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.04em;">Transferencia</div>
-            <div style="font-size:20px;font-weight:700;color:var(--text-primary);margin-top:4px;">${{ caja.transferencia|pesos }}</div>
+        <div class="caja-mini caja-mini--transferencia">
+            <div class="caja-mini-label">
+                <i class="fas fa-building-columns" aria-hidden="true"></i> Transferencia
+            </div>
+            <div class="caja-mini-value">${{ caja.transferencia|pesos }}</div>
         </div>
-        <div style="padding:12px;border:1px solid var(--border);border-radius:10px;background:var(--bg-main);">
-            <div style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.04em;">Total general</div>
-            <div style="font-size:20px;font-weight:700;color:#047857;margin-top:4px;">${{ caja.general|pesos }}</div>
+        <div class="caja-mini caja-mini--total">
+            <div class="caja-mini-label">
+                <i class="fas fa-circle-check" aria-hidden="true"></i> Total general
+            </div>
+            <div class="caja-mini-value">${{ caja.general|pesos }}</div>
         </div>
-        <div style="padding:12px;border:1px solid var(--border);border-radius:10px;background:var(--bg-main);">
-            <div style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.04em;">Turnos cobrados</div>
-            <div style="font-size:20px;font-weight:700;color:var(--text-primary);margin-top:4px;">{{ caja.cantidad }}</div>
+        <div class="caja-mini caja-mini--turnos">
+            <div class="caja-mini-label">
+                <i class="fas fa-receipt" aria-hidden="true"></i> Turnos cobrados
+            </div>
+            <div class="caja-mini-value">{{ caja.cantidad }}</div>
         </div>
     </div>
-    <div style="font-size:10px;color:var(--text-secondary);margin-top:10px;">
-        Registro interno de cobro. No es comprobante fiscal.
-    </div>
+    <p class="caja-note">Registro interno de cobro. No es comprobante fiscal.</p>
 </div>
 {% endif %}
 
 <!-- RESUMEN SEMANAL -->
-<div class="card" style="margin-bottom:20px;">
+<div class="card">
     <div class="card-header">
-        <span class="card-title">📊 Turnos esta semana</span>
-        <a href="{% url 'turnos:agenda' %}" class="btn btn-outline btn-sm">Ver agenda</a>
+        <span class="card-title dash-card-title">
+            <i class="fas fa-chart-column" aria-hidden="true"></i> Turnos esta semana
+        </span>
+        <a href="{% url 'turnos:agenda' %}" class="pill-link">
+            Ver agenda <i class="fas fa-chevron-right" aria-hidden="true"></i>
+        </a>
     </div>
     <div class="week-grid">
         {% for dia in semana %}
         <a href="{% url 'turnos:agenda' %}?fecha={{ dia.fecha|date:'Y-m-d' }}"
-           style="text-decoration:none;text-align:center;padding:10px 6px;border-radius:8px;border:1px solid {% if dia.es_hoy %}var(--sidebar-bg){% else %}var(--border){% endif %};background:{% if dia.es_hoy %}var(--tile-bg){% else %}transparent{% endif %};">
-            <div style="font-size:11px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;">{{ dia.nombre }}</div>
-            <div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px;">{{ dia.fecha|date:"d/m" }}</div>
-            <div style="font-size:22px;font-weight:700;color:{% if dia.es_hoy %}var(--sidebar-bg){% else %}var(--text-primary){% endif %};">{{ dia.total }}</div>
+           class="week-day{% if dia.es_hoy %} is-today{% endif %}"
+           {% if dia.es_hoy %}aria-current="date"{% endif %}>
+            <span class="week-day-name">{{ dia.nombre }}</span>
+            <span class="week-day-date">{{ dia.fecha|date:"d/m" }}</span>
+            <span class="week-day-count">{{ dia.total }}</span>
             {% if dia.realizados > 0 %}
-            <div style="font-size:10px;color:#16a34a;margin-top:2px;">✓ {{ dia.realizados }}</div>
+            <span class="week-day-done"><i class="fas fa-check" aria-hidden="true"></i> {{ dia.realizados }}</span>
             {% endif %}
         </a>
         {% endfor %}
     </div>
 </div>
 
-<div class="grid-2">
+<div class="grid-2 dash-grid">
 
-    <!-- TURNOS HOY -->
+    <!-- TURNOS DE HOY -->
     <div class="card">
         <div class="card-header">
-            <span class="card-title">📅 Turnos de hoy</span>
-            <a href="{% url 'turnos:agenda' %}" class="btn btn-outline btn-sm">Ver todos</a>
+            <span class="card-title dash-card-title">
+                <i class="fas fa-calendar-day" aria-hidden="true"></i> Turnos de hoy
+            </span>
+            <a href="{% url 'turnos:agenda' %}" class="pill-link">
+                Ver todos <i class="fas fa-chevron-right" aria-hidden="true"></i>
+            </a>
         </div>
         {% if turnos_hoy_lista %}
         <div class="table-scroll">
@@ -142,9 +429,24 @@
         </table>
         </div>
         {% else %}
-        <div class="empty-state" style="padding:30px 0;">
-            <div class="icon">📭</div>
-            <p>No hay turnos programados para hoy.</p>
+        <div class="agenda-empty">
+            <svg viewBox="0 0 160 140" aria-hidden="true" focusable="false">
+                <rect x="22" y="28" width="104" height="92" rx="14"
+                      fill="none" style="stroke: var(--accent)" stroke-width="2.5" opacity="0.5"></rect>
+                <path d="M22 52 H126" fill="none" style="stroke: var(--accent)" stroke-width="2.5" opacity="0.5"></path>
+                <path d="M50 18 V36 M98 18 V36" fill="none" style="stroke: var(--accent)"
+                      stroke-width="4" stroke-linecap="round"></path>
+                <rect x="40" y="66" width="12" height="10" rx="3" style="fill: var(--accent)" opacity="0.26"></rect>
+                <rect x="62" y="66" width="12" height="10" rx="3" style="fill: var(--accent)" opacity="0.26"></rect>
+                <rect x="84" y="66" width="12" height="10" rx="3" style="fill: var(--accent)" opacity="0.26"></rect>
+                <circle cx="116" cy="102" r="24" fill="var(--bg-card)"
+                        style="stroke: var(--accent)" stroke-width="2.5"></circle>
+                <path d="M116 90 V103 L125 108" fill="none" style="stroke: var(--accent)"
+                      stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></path>
+            </svg>
+            <h3>No hay turnos para hoy</h3>
+            <p>Podés revisar la agenda para ver los próximos turnos.</p>
+            <a href="{% url 'turnos:agenda' %}" class="btn btn-outline">Ver agenda</a>
         </div>
         {% endif %}
     </div>
@@ -152,57 +454,77 @@
     <!-- PANEL DERECHO -->
     <div>
         <!-- ACCESOS RÁPIDOS -->
-        <div class="card" style="margin-bottom:16px;">
-            <div class="card-title" style="margin-bottom:14px;">⚡ Accesos rápidos</div>
-            <div class="grid-2 compact">
+        <div class="card">
+            <div class="card-title dash-card-title" style="margin-bottom:14px;">
+                <i class="fas fa-bolt" aria-hidden="true"></i> Accesos rápidos
+            </div>
+            <div class="quick-actions">
                 {% if es_recepcion %}
-                <a href="{% url 'pacientes:crear' %}" class="btn btn-primary" style="justify-content:center;">+ Nuevo Paciente</a>
-                <a href="{% url 'turnos:crear' %}" class="btn btn-accent" style="justify-content:center;">+ Nuevo Turno</a>
-                <a href="{% url 'profesionales:crear' %}" class="btn btn-outline" style="justify-content:center;">+ Profesional</a>
+                <a href="{% url 'pacientes:crear' %}" class="quick-action quick-action--primary">
+                    <i class="fas fa-user-plus" aria-hidden="true"></i> Nuevo Paciente
+                </a>
+                <a href="{% url 'turnos:crear' %}" class="quick-action quick-action--secondary">
+                    <i class="fas fa-calendar-plus" aria-hidden="true"></i> Nuevo Turno
+                </a>
+                <a href="{% url 'profesionales:crear' %}" class="quick-action quick-action--tertiary">
+                    <i class="fas fa-user-doctor" aria-hidden="true"></i> + Profesional
+                </a>
                 {% endif %}
-                <a href="{% url 'turnos:agenda' %}" class="btn btn-outline" style="justify-content:center;">📅 Ver Agenda</a>
-                <a href="{% url 'pacientes:lista' %}" class="btn btn-outline" style="justify-content:center;">👥 Ver Pacientes</a>
+                <a href="{% url 'turnos:agenda' %}" class="quick-action quick-action--tertiary">
+                    <i class="fas fa-calendar-days" aria-hidden="true"></i> Ver Agenda
+                </a>
+                <a href="{% url 'pacientes:lista' %}" class="quick-action quick-action--tertiary">
+                    <i class="fas fa-users" aria-hidden="true"></i> Ver Pacientes
+                </a>
             </div>
         </div>
 
         <!-- TURNOS MAÑANA -->
-        <div class="card" style="margin-bottom:16px;">
+        <div class="card">
             <div class="card-header">
-                <span class="card-title">🌅 Mañana ({{ count_manana }} turno{{ count_manana|pluralize }})</span>
-                <a href="{% url 'turnos:agenda' %}?fecha={{ hoy|date:'Y-m-d' }}" class="btn btn-outline btn-sm">Ver</a>
+                <span class="card-title dash-card-title">
+                    <i class="fas fa-sun" aria-hidden="true"></i>
+                    Mañana ({{ count_manana }} turno{{ count_manana|pluralize }})
+                </span>
+                <a href="{% url 'turnos:agenda' %}?fecha={{ hoy|date:'Y-m-d' }}" class="pill-link">
+                    Ver <i class="fas fa-chevron-right" aria-hidden="true"></i>
+                </a>
             </div>
             {% if turnos_manana %}
             {% for turno in turnos_manana %}
-            <div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px;">
+            <div class="list-row">
                 <strong style="min-width:38px;">{{ turno.fecha_hora|date:"H:i" }}</strong>
                 <span style="flex:1;">{{ turno.paciente.apellido }}, {{ turno.paciente.nombre }}</span>
-                <span style="color:var(--text-secondary);">{{ turno.profesional.apellido }}</span>
+                <span class="row-muted">{{ turno.profesional.apellido }}</span>
             </div>
             {% endfor %}
             {% else %}
-            <p style="color:var(--text-secondary);font-size:13px;margin-top:8px;">Sin turnos para mañana.</p>
+            <p class="list-empty">Sin turnos para mañana.</p>
             {% endif %}
         </div>
 
         <!-- DERIVACIONES RECIBIDAS (PROFESIONAL) -->
         {% if es_profesional %}
-        <div class="card" style="margin-bottom:16px;">
+        <div class="card">
             <div class="card-header">
-                <span class="card-title">🔀 Derivaciones pendientes</span>
-                <a href="{% url 'derivaciones:lista' %}" class="btn btn-outline btn-sm">Ver todas</a>
+                <span class="card-title dash-card-title">
+                    <i class="fas fa-share-from-square" aria-hidden="true"></i> Derivaciones pendientes
+                </span>
+                <a href="{% url 'derivaciones:lista' %}" class="pill-link">
+                    Ver todas <i class="fas fa-chevron-right" aria-hidden="true"></i>
+                </a>
             </div>
             {% for derivacion in derivaciones_recientes %}
-            <a href="{% url 'derivaciones:detalle' derivacion.pk %}"
-               style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);text-decoration:none;color:inherit;">
+            <a href="{% url 'derivaciones:detalle' derivacion.pk %}" class="list-row" style="text-decoration:none;color:inherit;">
                 <span class="badge badge-pendiente">Nueva</span>
                 <div style="flex:1;min-width:0;">
                     <div style="font-size:13px;font-weight:600;">{{ derivacion.paciente.apellido }}, {{ derivacion.paciente.nombre }}</div>
                     <div style="font-size:11px;color:var(--text-secondary);">De {{ derivacion.profesional_origen }} · {{ derivacion.creado|date:"d/m/Y" }}</div>
                 </div>
-                <span style="color:var(--text-secondary);">›</span>
+                <i class="fas fa-chevron-right row-chevron" aria-hidden="true"></i>
             </a>
             {% empty %}
-            <p style="color:var(--text-secondary);font-size:13px;margin-top:8px;">No tenés derivaciones pendientes.</p>
+            <p class="list-empty">No tenés derivaciones pendientes.</p>
             {% endfor %}
         </div>
         {% endif %}
@@ -210,11 +532,15 @@
         <!-- PACIENTES RECIENTES -->
         <div class="card">
             <div class="card-header">
-                <span class="card-title">🕐 Pacientes recientes</span>
-                <a href="{% url 'pacientes:lista' %}" class="btn btn-outline btn-sm">Ver todos</a>
+                <span class="card-title dash-card-title">
+                    <i class="fas fa-clock-rotate-left" aria-hidden="true"></i> Pacientes recientes
+                </span>
+                <a href="{% url 'pacientes:lista' %}" class="pill-link">
+                    Ver todos <i class="fas fa-chevron-right" aria-hidden="true"></i>
+                </a>
             </div>
             {% for paciente in pacientes_recientes %}
-            <div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--border);">
+            <div class="list-row">
                 <div class="patient-avatar" style="width:36px;height:36px;font-size:13px;">{{ paciente.iniciales }}</div>
                 <div style="flex:1;min-width:0;">
                     <div style="font-size:13px;font-weight:600;">{{ paciente.apellido }}, {{ paciente.nombre }}</div>
@@ -223,7 +549,7 @@
                 <a href="{% url 'pacientes:detalle' paciente.pk %}" class="btn btn-outline btn-sm">Ver</a>
             </div>
             {% empty %}
-            <p style="color:var(--text-secondary);font-size:13px;">Sin pacientes registrados aún.</p>
+            <p class="list-empty">Sin pacientes registrados aún.</p>
             {% endfor %}
         </div>
     </div>
