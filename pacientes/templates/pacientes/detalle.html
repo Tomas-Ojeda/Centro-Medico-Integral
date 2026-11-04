@@ -7,12 +7,14 @@
 
 {% block header_action %}
 {% if es_recepcion %}
-<a href="{% url 'pacientes:crear' %}" class="btn btn-primary">👤+ Nuevo Paciente</a>
+<div class="actions-row">
+    <a href="{% url 'pacientes:crear' %}" class="btn btn-primary">👤+ Nuevo Paciente</a>
+</div>
 {% endif %}
 {% endblock %}
 
 {% block content %}
-<div style="display:grid;grid-template-columns:280px 1fr;gap:20px;align-items:start;">
+<div class="split-layout">
 
     <!-- PANEL IZQUIERDO: LISTA DE PACIENTES -->
     <div class="card" style="padding:16px;">
@@ -23,7 +25,7 @@
             </div>
         </form>
         <div style="font-size:12px;color:var(--text-secondary);margin-bottom:10px;">{% if es_profesional %}Mis pacientes{% else %}Pacientes recientes{% endif %}</div>
-        <div style="max-height:calc(100vh - 260px);overflow-y:auto;">
+        <div class="scroll-panel">
             {% for p in pacientes_sidebar %}
             <a href="{% url 'pacientes:detalle' p.pk %}"
                style="display:flex;align-items:center;gap:10px;padding:10px;border-radius:8px;text-decoration:none;color:inherit;margin-bottom:2px;{% if p.pk == paciente.pk %}background:var(--sidebar-bg);color:#fff;{% endif %}">
@@ -44,18 +46,18 @@
     <div>
         <!-- DATOS DEL PACIENTE -->
         <div class="card" style="margin-bottom:20px;">
-            <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px;">
-                <div style="display:flex;align-items:center;gap:16px;">
+            <div class="stack-mobile" style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:16px;">
+                <div style="display:flex;align-items:center;gap:16px;min-width:0;">
                     <div class="patient-avatar lg">{{ paciente.iniciales }}</div>
-                    <div>
-                        <h2 style="font-size:20px;font-weight:700;">{{ paciente.apellido }}, {{ paciente.nombre }}</h2>
-                        <div style="display:flex;align-items:center;gap:10px;margin-top:4px;">
+                    <div style="min-width:0;">
+                        <h2 style="font-size:20px;font-weight:700;overflow-wrap:anywhere;">{{ paciente.apellido }}, {{ paciente.nombre }}</h2>
+                        <div style="display:flex;align-items:center;gap:10px;margin-top:4px;flex-wrap:wrap;">
                             <span style="font-size:13px;color:var(--text-secondary);">DNI {{ paciente.dni }}</span>
                             <span class="badge badge-confirmado">{{ paciente.edad }} años</span>
                         </div>
                     </div>
                 </div>
-                <div style="display:flex;gap:8px;">
+                <div class="actions-row">
                     {% if puede_derivar %}
                     <a href="{% url 'derivaciones:crear' paciente.pk %}" class="btn btn-primary btn-sm">🔀 Derivar paciente</a>
                     {% endif %}
@@ -216,7 +218,7 @@
             </div>
 
             {% if adjuntos_historia %}
-            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px;">
+            <div class="cards-grid-sm">
                 {% for adjunto in adjuntos_historia %}
                 <div style="border:1px solid var(--border);border-radius:10px;padding:10px;background:var(--input-bg);">
                     {% if adjunto.es_imagen %}
@@ -306,7 +308,7 @@
                             <span class="badge badge-pendiente" style="font-size:10px;margin-left:4px;">editada</span>
                             {% endif %}
                         </div>
-                        <div style="display:flex;gap:6px;">
+                        <div class="actions-row">
                             {% if es_admin or nota.autor_id == user.id %}
                             <button type="button" class="btn btn-outline btn-sm"
                                     onclick="var f=document.getElementById('editar-nota-{{ nota.pk }}'); f.style.display = f.style.display === 'none' || !f.style.display ? 'block' : 'none';">
@@ -344,7 +346,7 @@
             </div>
 
             {% if notas_page.has_other_pages %}
-            <div style="display:flex;justify-content:center;gap:8px;margin-top:14px;">
+            <div class="actions-row" style="justify-content:center;margin-top:14px;">
                 {% if notas_page.has_previous %}
                 <a href="?notas_page={{ notas_page.previous_page_number }}" class="btn btn-outline btn-sm">← Anteriores</a>
                 {% endif %}

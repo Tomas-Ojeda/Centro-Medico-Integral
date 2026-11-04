@@ -14,7 +14,7 @@
 {% block content %}
 
 {% if es_profesional %}
-<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+<div class="actions-row" style="margin-bottom:16px;">
     <a href="?tab=recibidas"
        class="btn {% if tab == 'recibidas' %}btn-primary{% else %}btn-outline{% endif %}">
         📥 Recibidas ({{ recibidas }})
@@ -30,7 +30,7 @@
 {% if derivaciones %}
 <div class="card" style="padding:0;overflow:hidden;">
     {% for derivacion in derivaciones %}
-    <div style="display:flex;align-items:flex-start;gap:16px;padding:18px 20px;border-bottom:1px solid var(--border);">
+    <div class="stack-mobile" style="display:flex;align-items:flex-start;gap:16px;padding:18px 20px;border-bottom:1px solid var(--border);">
         <div style="min-width:108px;">
             {% if derivacion.estado == 'pendiente' %}
             <span class="badge badge-pendiente">Pendiente</span>

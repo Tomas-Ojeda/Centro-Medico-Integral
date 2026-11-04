@@ -11,7 +11,7 @@
 
 {% block content %}
 
-<div class="turn-stats" style="grid-template-columns:repeat(2, minmax(0, 1fr));max-width:520px;">
+<div class="turn-stats cols-2">
     <div class="turn-stat pendientes">
         <div class="stat-num">{{ total_pendientes }}</div>
         <div class="stat-label">Pendientes</div>
@@ -25,7 +25,7 @@
 {% if solicitudes %}
 <div class="card" style="padding:0;overflow:hidden;">
     {% for solicitud in solicitudes %}
-    <div style="display:flex;align-items:flex-start;gap:16px;padding:18px 20px;border-bottom:1px solid var(--border);{% if solicitud.esta_vencida %}background:rgba(239,68,68,0.06);border-left:4px solid var(--danger);{% endif %}">
+    <div class="stack-mobile" style="display:flex;align-items:flex-start;gap:16px;padding:18px 20px;border-bottom:1px solid var(--border);{% if solicitud.esta_vencida %}background:rgba(239,68,68,0.06);border-left:4px solid var(--danger);{% endif %}">
         <div style="min-width:96px;">
             <div style="font-size:13px;font-weight:700;color:{% if solicitud.esta_vencida %}var(--danger){% else %}var(--text-primary){% endif %};">
                 {{ solicitud.fecha_sugerida|date:"d/m/Y" }}

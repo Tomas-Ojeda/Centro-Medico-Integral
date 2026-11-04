@@ -65,7 +65,7 @@
             {% endif %}
         </form>
     </div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;">
+    <div class="grid-auto">
         <div style="padding:12px;border:1px solid var(--border);border-radius:10px;background:var(--bg-main);">
             <div style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.04em;">Efectivo</div>
             <div style="font-size:20px;font-weight:700;color:var(--text-primary);margin-top:4px;">${{ caja.efectivo|pesos }}</div>
@@ -95,7 +95,7 @@
         <span class="card-title">📊 Turnos esta semana</span>
         <a href="{% url 'turnos:agenda' %}" class="btn btn-outline btn-sm">Ver agenda</a>
     </div>
-    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-top:8px;">
+    <div class="week-grid">
         {% for dia in semana %}
         <a href="{% url 'turnos:agenda' %}?fecha={{ dia.fecha|date:'Y-m-d' }}"
            style="text-decoration:none;text-align:center;padding:10px 6px;border-radius:8px;border:1px solid {% if dia.es_hoy %}var(--sidebar-bg){% else %}var(--border){% endif %};background:{% if dia.es_hoy %}var(--tile-bg){% else %}transparent{% endif %};">
@@ -110,7 +110,7 @@
     </div>
 </div>
 
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+<div class="grid-2">
 
     <!-- TURNOS HOY -->
     <div class="card">
@@ -119,6 +119,7 @@
             <a href="{% url 'turnos:agenda' %}" class="btn btn-outline btn-sm">Ver todos</a>
         </div>
         {% if turnos_hoy_lista %}
+        <div class="table-scroll">
         <table>
             <thead>
                 <tr>
@@ -139,6 +140,7 @@
                 {% endfor %}
             </tbody>
         </table>
+        </div>
         {% else %}
         <div class="empty-state" style="padding:30px 0;">
             <div class="icon">📭</div>
@@ -152,7 +154,7 @@
         <!-- ACCESOS RÁPIDOS -->
         <div class="card" style="margin-bottom:16px;">
             <div class="card-title" style="margin-bottom:14px;">⚡ Accesos rápidos</div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <div class="grid-2 compact">
                 {% if es_recepcion %}
                 <a href="{% url 'pacientes:crear' %}" class="btn btn-primary" style="justify-content:center;">+ Nuevo Paciente</a>
                 <a href="{% url 'turnos:crear' %}" class="btn btn-accent" style="justify-content:center;">+ Nuevo Turno</a>

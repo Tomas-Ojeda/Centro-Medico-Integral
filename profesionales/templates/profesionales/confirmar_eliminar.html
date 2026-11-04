@@ -15,7 +15,7 @@
             {% endif %}
             Si tiene consultas registradas, no se podrá eliminar (protección de integridad).
         </p>
-        <form method="post" style="display:flex;gap:12px;justify-content:center;">
+        <form method="post" class="actions-row" style="justify-content:center;">
             {% csrf_token %}
             <a href="{% url 'profesionales:lista' %}" class="btn btn-outline">Cancelar</a>
             <button type="submit" class="btn btn-danger" style="background:#ef4444;color:#fff;border:none;">Eliminar</button>

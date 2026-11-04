@@ -70,7 +70,7 @@
 
             <!-- CAMPOS ADICIONALES DINÁMICOS -->
             <div id="campos-adicionales-container" style="margin-top:20px;">
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
                     <label style="font-size:13px;font-weight:600;color:var(--text-primary);">Campos adicionales</label>
                     <button type="button" class="btn btn-outline btn-sm" onclick="agregarCampoAdicional()">
                         + Agregar campo
@@ -82,7 +82,7 @@
                         <div class="form-group full">
                             <label>{{ campo.nombre }}</label>
                             {{ form|get_field:campo.pk }}
-                            <div style="display:flex;gap:6px;margin-top:4px;">
+                            <div class="actions-row" style="margin-top:4px;">
                                 <button type="button" onclick="vaciarCampo(this)" style="padding:4px 8px;font-size:11px;background:transparent;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--text-secondary);">Vaciar</button>
                                 {% if es_admin %}
                                 <button type="button" class="btn-quitar-campo" data-url="{% url 'historias:quitar_campo_adicional' campo.pk %}" onclick="quitarCampoAdicional(this)" style="padding:4px 8px;font-size:11px;background:transparent;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:#dc2626;">Quitar campo</button>

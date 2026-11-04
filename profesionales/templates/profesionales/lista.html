@@ -13,7 +13,7 @@
 
 <!-- SEARCH BAR -->
 <form method="get" style="margin-bottom:20px;" id="form-busqueda-prof">
-    <div style="display:flex;gap:10px;align-items:center;">
+    <div class="search-row">
         <div class="search-bar" style="flex:1;max-width:320px;">
             <span class="search-icon">🔍</span>
             <input type="text" name="q" value="{{ q }}" placeholder="Buscar por nombre o especialidad..." id="input-busqueda-prof" autocomplete="off">
@@ -24,7 +24,7 @@
 </form>
 
 {% if profesionales %}
-<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;">
+<div class="cards-grid">
     {% for prof in profesionales %}
     <div class="card" style="padding:20px;">
         <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px;">
@@ -43,7 +43,7 @@
                     {% endfor %}
                 </div>
             </div>
-            <div style="display:flex;gap:6px;">
+            <div class="actions-row">
                 <a href="{% url 'profesionales:editar' prof.pk %}" class="btn btn-outline btn-sm" title="Editar">✏️</a>
                 <a href="{% url 'profesionales:eliminar' prof.pk %}" class="btn btn-danger btn-sm" title="Eliminar">🗑</a>
             </div>

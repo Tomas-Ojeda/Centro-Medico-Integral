@@ -25,7 +25,7 @@
                     <div class="autocomplete-container">
                         <input type="text" id="paciente-search" placeholder="Buscar paciente por nombre o DNI..." autocomplete="off"
                                value="{% if paciente_inicial %}{{ paciente_inicial.nombre_completo }}{% endif %}"
-                               style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--input-bg);color:var(--text-primary);">
+                               style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;background:var(--input-bg);color:var(--text-primary);">
                         <div class="autocomplete-list" id="paciente-results"></div>
                     </div>
                     {{ form.paciente.as_hidden }}
@@ -36,7 +36,7 @@
                     <div class="autocomplete-container">
                         <input type="text" id="profesional-search" placeholder="Buscar profesional por nombre o especialidad..." autocomplete="off"
                                value="{% if profesional_inicial %}{{ profesional_inicial.nombre_completo }}{% endif %}"
-                               style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--input-bg);color:var(--text-primary);">
+                               style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;background:var(--input-bg);color:var(--text-primary);">
                         <div class="autocomplete-list" id="profesional-results"></div>
                     </div>
                     {{ form.profesional.as_hidden }}
