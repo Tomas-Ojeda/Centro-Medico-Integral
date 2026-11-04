@@ -152,7 +152,7 @@ class LoginVisualTests(TestCase):
         self.assertContains(response, 'Por favor introduzca un nombre de usuario y una contraseña correctos')
 
     def test_axes_bloquea_y_usa_la_plantilla_del_login(self):
-        for _ in range(6):
+        for _ in range(8):
             response = self.client.post(
                 reverse('login'),
                 {'username': self.user.username, 'password': 'incorrecta'},
@@ -160,6 +160,11 @@ class LoginVisualTests(TestCase):
 
         self.assertEqual(response.status_code, 429)
         self.assertContains(response, 'Acceso bloqueado', status_code=429)
+        self.assertContains(
+            response,
+            'Demasiados intentos fallidos',
+            status_code=429,
+        )
         self.assertContains(response, 'Volver al inicio de sesión', status_code=429)
         self.assertContains(response, 'role="alert"', status_code=429)
 

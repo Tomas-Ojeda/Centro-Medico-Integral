@@ -1,4 +1,5 @@
 import os
+from datetime import timedelta
 from pathlib import Path
 from django.core.exceptions import ImproperlyConfigured
 
@@ -37,6 +38,8 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'axes',  # Bloqueo de intentos de login fallidos
+    # App del proyecto (contiene el backend de login y comandos de gestión)
+    'consultorio_salto',
     # Apps del proyecto
     'dashboard',
     'pacientes',
@@ -94,7 +97,10 @@ DATABASES = {
 
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
+    {
+        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+        'OPTIONS': {'min_length': 12},
+    },
     {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
     {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
@@ -120,15 +126,36 @@ LOGOUT_REDIRECT_URL = '/accounts/login/'
 # ─── django-axes: Bloqueo de fuerza bruta ──────────────────────
 AUTHENTICATION_BACKENDS = [
     'axes.backends.AxesStandaloneBackend',
-    'django.contrib.auth.backends.ModelBackend',
+    # Reemplaza a ModelBackend y permite ingresar el usuario sin distinguir
+    # mayúsculas de minúsculas.
+    'consultorio_salto.auth_backends.CaseInsensitiveBackend',
 ]
-AXES_FAILURE_LIMIT = 5  # Intentos fallidos antes de bloquear
-AXES_COOLOFF_TIME = 0.25  # 15 minutos de bloqueo
-AXES_LOCKOUT_PARAMETERS = ['ip_address', 'username']
-AXES_IPWARE_PROXY_COUNT = 1  # Render usa 1 proxy
-AXES_IPWARE_META_PRECEDENCE_ORDER = ('HTTP_X_FORWARDED_FOR', 'REMOTE_ADDR')
+
+# Se bloquea solo la combinación IP + usuario. Así, los equipos del consultorio
+# que comparten la IP pública no se bloquean entre sí por los fallos de otra
+# persona. El costo es que una misma IP puede probar muchos usuarios distintos;
+# se compensa con contraseñas de 12 caracteres o más y, más adelante, con 2FA.
+AXES_FAILURE_LIMIT = int(os.environ.get('AXES_FAILURE_LIMIT', '8'))
+AXES_COOLOFF_TIME = timedelta(minutes=15)
+AXES_LOCKOUT_PARAMETERS = [['ip_address', 'username']]
 AXES_RESET_ON_SUCCESS = True  # Resetear contador al loguearse bien
-AXES_LOCKOUT_TEMPLATE = 'registration/lockout.html'  # Mismo estilo que el login
+AXES_HTTP_RESPONSE_CODE = 429
+AXES_LOCKOUT_TEMPLATE = 'registration/bloqueado.html'  # Mismo estilo que el login
+
+# Detección de IP detrás de proxies (Render + Cloudflare).
+# El default no cambia el comportamiento actual. Si axes_list_attempts muestra
+# una IP compartida o de Cloudflare, probar con AXES_IP_HEADERS=HTTP_TRUE_CLIENT_IP,
+# HTTP_CF_CONNECTING_IP,HTTP_X_FORWARDED_FOR,REMOTE_ADDR (ver README).
+AXES_IP_HEADERS = tuple(
+    header.strip()
+    for header in os.environ.get(
+        'AXES_IP_HEADERS',
+        'HTTP_X_FORWARDED_FOR,REMOTE_ADDR',
+    ).split(',')
+    if header.strip()
+) or ('HTTP_X_FORWARDED_FOR', 'REMOTE_ADDR')
+AXES_IPWARE_PROXY_COUNT = 1  # Render usa 1 proxy
+AXES_IPWARE_META_PRECEDENCE_ORDER = AXES_IP_HEADERS
 
 # ─── Importación de planillas ──────────────────────────────────
 # La API key se lee de la variable de entorno ANTHROPIC_API_KEY

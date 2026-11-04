@@ -9,8 +9,9 @@ from .models import Derivacion
 class DerivacionForm(forms.ModelForm):
     """Formulario para derivar un paciente a otro profesional.
 
-    El origen lo fija la vista para los profesionales. El Admin puede
-    elegirlo entre los profesionales que atienden al paciente.
+    Recepción y Administración eligen el profesional de origen entre los que
+    atienden al paciente. ``permitir_origen=False`` queda disponible para
+    usos internos que fijen el origen desde la vista.
     """
 
     class Meta:

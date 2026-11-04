@@ -12,6 +12,7 @@ from django.views.generic import DetailView, ListView
 from auditoria.mixins import AuditoriaMixin
 from consultorio_salto.permisos import (
     RecepcionOProfesionalMixin,
+    SoloRecepcionMixin,
     es_admin,
 )
 from pacientes.models import Paciente
@@ -85,40 +86,35 @@ class DerivacionListView(
 
 
 class DerivacionCreateView(
-    RecepcionOProfesionalMixin,
+    SoloRecepcionMixin,
     LoginRequiredMixin,
     AuditoriaMixin,
     View,
 ):
-    """Deriva un paciente a otro profesional y pide el turno."""
+    """Deriva un paciente a otro profesional y pide el turno.
+
+    Solo Recepción y Administración pueden crear derivaciones. El profesional
+    de origen se elige en el formulario.
+    """
 
     template_name = 'derivaciones/formulario.html'
     accion = 'crear'
     modelo = 'Derivacion'
 
     def get_origen(self):
-        """El profesional logueado; ``None`` si es Admin (lo elige)."""
-        if es_admin(self.request.user):
-            return None
-        if self.profesional is None:
-            raise PermissionDenied(
-                'Solo los profesionales que atienden al paciente pueden '
-                'derivarlo.'
-            )
-        return self.profesional
+        """La recepción elige el origen en el formulario."""
+        return None
 
     def get_paciente(self):
-        origen = self.get_origen()
-        if origen is not None:
-            return get_object_or_404(
-                Paciente.objects.atendidos_por(origen),
-                pk=self.kwargs['paciente_pk'],
-            )
         return get_object_or_404(Paciente, pk=self.kwargs['paciente_pk'])
 
     def profesionales_origen(self, paciente):
-        """Profesionales habilitados para derivar (solo para el Admin)."""
-        return Profesional.objects.filter(
+        """Profesionales habilitados para figurar como origen.
+
+        Se muestran los que ya atendieron al paciente. Si todavía no tiene
+        vínculos, se ofrecen todos los profesionales activos.
+        """
+        vinculados = Profesional.objects.filter(
             Q(turnos__paciente=paciente)
             | Q(consultas__paciente=paciente)
             | Q(
@@ -130,17 +126,19 @@ class DerivacionCreateView(
             )
         ).distinct().order_by('apellido', 'nombre')
 
+        if vinculados.exists():
+            return vinculados
+        return Profesional.objects.filter(activo=True).order_by(
+            'apellido', 'nombre'
+        )
+
     def construir_form(self, paciente, origen, data=None):
-        permitir_origen = es_admin(self.request.user)
         kwargs = {
             'paciente': paciente,
             'profesional_origen': origen,
-            'permitir_origen': permitir_origen,
+            'permitir_origen': True,
+            'profesionales_origen': self.profesionales_origen(paciente),
         }
-        if permitir_origen:
-            kwargs['profesionales_origen'] = self.profesionales_origen(
-                paciente
-            )
         if data is not None:
             kwargs['data'] = data
         return DerivacionForm(**kwargs)
@@ -155,7 +153,7 @@ class DerivacionCreateView(
             'paciente': paciente,
             'form': form,
             'profesional_origen': origen,
-            'es_admin_form': es_admin(self.request.user),
+            'permitir_origen': True,
             'profesional_destino_inicial': destino_inicial,
             'titulo': 'Derivar paciente',
         }
@@ -446,18 +444,19 @@ class DerivacionDeleteView(
 
 
 class BuscarProfesionalesDerivacionView(
-    RecepcionOProfesionalMixin,
+    SoloRecepcionMixin,
     LoginRequiredMixin,
     View,
 ):
-    """Endpoint JSON con los profesionales activos para derivar."""
+    """Endpoint JSON con los profesionales activos para derivar.
+
+    Solo Recepción y Administración crean derivaciones, por lo que este
+    buscador tampoco está disponible para profesionales.
+    """
 
     def get(self, request):
         q = request.GET.get('q', '').strip()
         profesionales = Profesional.objects.filter(activo=True)
-
-        if self.profesional:
-            profesionales = profesionales.exclude(pk=self.profesional.pk)
 
         if q:
             profesionales = profesionales.filter(

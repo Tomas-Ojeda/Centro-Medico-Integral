@@ -17,7 +17,7 @@ Sistema de gestión de pacientes, historias clínicas, profesionales y turnos pa
 - **Importación masiva** desde Excel, CSV o fotos de planillas (IA)
 - **Generación de PDF** con historia clínica completa
 - **Auditoría de accesos** — registro de quién vio qué, cuándo y desde qué IP
-- **Bloqueo de fuerza bruta** (django-axes) — 5 intentos fallidos = 15 min de bloqueo
+- **Bloqueo de fuerza bruta** (django-axes) — 8 intentos fallidos por usuario+IP = 15 min de bloqueo
 - **Archivos adjuntos protegidos** — solo accesibles por usuarios autenticados
 - **Respaldo de adjuntos** — ZIP en streaming, solo para superusuarios
 - **Validación de archivos** — extensión, tipo MIME real y tamaño máximo (10 MB)
@@ -40,7 +40,7 @@ Sistema de gestión de pacientes, historias clínicas, profesionales y turnos pa
 | Validación de archivos | Extensión + MIME real + tamaño máximo |
 | HSTS | HTTP Strict Transport Security (1 año) |
 | Cookies seguras | HttpOnly, Secure, SameSite=Lax |
-| Bloqueo de fuerza bruta | django-axes (5 intentos = 15 min) |
+| Bloqueo de fuerza bruta | django-axes (8 intentos por usuario+IP = 15 min) |
 | Auditoría | Registro de accesos (ver, crear, editar, borrar, descargar, exportar, importar, login) |
 | Path traversal | Validación de rutas resuletas dentro de MEDIA_ROOT |
 
@@ -76,6 +76,83 @@ no hace falta vincularlo a un profesional.
 
 > La vinculación `Profesional ↔ Usuario` se administra únicamente desde el
 > admin de Django. No se expone en los formularios de recepción.
+
+### Derivaciones de pacientes
+
+Las derivaciones las crea **Recepción o Administración** desde la ficha del
+paciente. El profesional de origen se elige en el formulario y Recepción agenda
+el turno con el profesional de destino. Los usuarios del grupo `Profesional`
+pueden ver las derivaciones que reciben o que les enviaron, pero no tienen el
+botón **Derivar paciente** ni acceso a la pantalla de creación.
+
+## Bloqueos de acceso
+
+El inicio de sesión usa **django-axes** con estas reglas:
+
+- **8 intentos fallidos** por **combinación de IP + usuario** (no por IP sola).
+  Así, los fallos de una persona no bloquean a todo el consultorio cuando
+  comparte la IP pública.
+- **15 minutos** de bloqueo, con respuesta **HTTP 429** y una página en español.
+- Un inicio de sesión exitoso **reinicia** los fallos de ese usuario.
+- La página de bloqueo no confirma si el usuario existe.
+
+El límite se puede cambiar con la variable de entorno `AXES_FAILURE_LIMIT`
+(default `8`).
+
+### Operación desde la Shell de Render
+
+Todos los comandos se ejecutan desde **Render → Shell** del servicio web:
+
+```bash
+# Ver intentos fallidos registrados (usuario, IP, fecha)
+python manage.py axes_list_attempts
+
+# Desbloquear absolutamente todos los intentos
+python manage.py axes_reset
+
+# Desbloquear una IP concreta
+python manage.py axes_reset_ip <ip>
+
+# Desbloquear un usuario concreto
+python manage.py axes_reset_username <usuario>
+
+# Restablecer la contraseña de un usuario
+python manage.py changepassword <usuario>
+
+# Verificar que no haya usuarios ambiguos por mayúsculas/minúsculas
+python manage.py verificar_usernames
+```
+
+Después de restablecer una contraseña, pedile a la persona que vuelva a
+ingresar. Si el bloqueo persiste, revisá con `axes_list_attempts` qué IP y qué
+usuario quedaron registrados y usá el comando de desbloqueo correspondiente.
+
+### Detección de IP detrás de Cloudflare
+
+Render recibe el tráfico a través de Cloudflare. Por defecto se usan los
+encabezados `HTTP_X_FORWARDED_FOR` y `REMOTE_ADDR`, con
+`AXES_IPWARE_PROXY_COUNT=1`. **No cambies este comportamiento sin verificar
+primero**: `X-Forwarded-For` puede venir como `cliente, cloudflare` y Render no
+limpia un valor enviado por el cliente, por lo que es falsificable.
+
+Para comprobar qué IP está registrando axes:
+
+1. Desde un celular con **datos móviles** (no Wi-Fi del consultorio), fallá una
+   vez a propósito en el login.
+2. Anotá la IP pública real del celular (por ejemplo, buscando "mi IP").
+3. En la Shell de Render ejecutá `python manage.py axes_list_attempts` y
+   compará la IP registrada con la real.
+
+Si `axes_list_attempts` muestra una IP compartida o una IP de Cloudflare,
+probá configurando la variable de entorno:
+
+```text
+AXES_IP_HEADERS=HTTP_TRUE_CLIENT_IP,HTTP_CF_CONNECTING_IP,HTTP_X_FORWARDED_FOR,REMOTE_ADDR
+```
+
+Reiniciá el servicio y repetí la prueba. Si la IP sigue sin coincidir, volvé al
+valor anterior (`HTTP_X_FORWARDED_FOR,REMOTE_ADDR`) y documentá el resultado
+antes de cambiar la configuración en producción.
 
 ## Requisitos legales
 
@@ -125,6 +202,8 @@ Acceder en `http://localhost`
 | `ADMIN_URL` | No | Ruta del admin (default: `admin/`) |
 | `NOTAS_VISIBLES_PARA_RECEPCION` | No | `True`/`False` (default: `True`) |
 | `PAGOS_VISIBLES_PARA_PROFESIONAL` | No | `True`/`False` (default: `False`) |
+| `AXES_FAILURE_LIMIT` | No | Intentos fallidos antes de bloquear (default: `8`) |
+| `AXES_IP_HEADERS` | No | Encabezados para detectar la IP, separados por coma (default: `HTTP_X_FORWARDED_FOR,REMOTE_ADDR`) |
 | `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST` | Solo Docker local | Conexión a PostgreSQL del `docker-compose.yml` |
 | `PGADMIN_EMAIL`, `PGADMIN_PASSWORD` | Solo desarrollo | Acceso a pgAdmin local |
 

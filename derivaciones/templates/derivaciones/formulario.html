@@ -27,7 +27,7 @@
             <ul class="errorlist">{% for e in form.non_field_errors %}<li>{{ e }}</li>{% endfor %}</ul>
             {% endif %}
 
-            {% if es_admin_form %}
+            {% if permitir_origen %}
             <div class="form-group" style="margin-bottom:16px;">
                 <label for="{{ form.profesional_origen.id_for_label }}">Profesional de origen *</label>
                 {{ form.profesional_origen }}

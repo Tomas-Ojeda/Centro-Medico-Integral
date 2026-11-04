@@ -26,6 +26,7 @@ from consultorio_salto.permisos import (
     RecepcionOProfesionalMixin,
     SoloRecepcionMixin,
     es_admin,
+    es_recepcion,
 )
 import io
 
@@ -92,9 +93,7 @@ class PacienteDetailView(RecepcionOProfesionalMixin, LoginRequiredMixin, Auditor
         ).order_by('-creado')
         ctx['pacientes_sidebar'] = self.get_queryset()[:20]
 
-        ctx['puede_derivar'] = bool(self.profesional) or es_admin(
-            self.request.user
-        )
+        ctx['puede_derivar'] = es_recepcion(self.request.user)
         ctx['derivacion_recibida'] = None
         if self.profesional:
             ctx['derivacion_recibida'] = Derivacion.objects.filter(

@@ -50,6 +50,15 @@ def pesos(value):
 
 
 @register.filter
+def minutos(value):
+    """Convierte un timedelta (por ejemplo, el cooloff de axes) a minutos."""
+    try:
+        return max(1, int(round(value.total_seconds() / 60)))
+    except (AttributeError, TypeError, ValueError):
+        return value
+
+
+@register.filter
 def formatear_fecha_hora_es(value):
     """Formatea una fecha con hora en español: '12 de Octubre 2026, 14:30'"""
     if not value:

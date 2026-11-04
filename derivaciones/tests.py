@@ -144,11 +144,12 @@ class BaseDerivacionesTests(TestCase):
 
 
 class CreacionDerivacionTests(BaseDerivacionesTests):
-    def test_profesional_crea_derivacion_y_solicitud_de_turno(self):
-        self.login(self.user_a)
+    def test_recepcion_crea_derivacion_y_solicitud_de_turno(self):
+        self.login(self.recepcion)
         response = self.client.post(
             self.url_crear(),
             {
+                'profesional_origen': self.prof_a.pk,
                 'profesional_destino': self.prof_b.pk,
                 'motivo': 'Dolor lumbar persistente.',
             },
@@ -164,7 +165,7 @@ class CreacionDerivacionTests(BaseDerivacionesTests):
         self.assertEqual(derivacion.profesional_destino, self.prof_b)
         self.assertEqual(derivacion.motivo, 'Dolor lumbar persistente.')
         self.assertEqual(derivacion.estado, EstadoDerivacion.PENDIENTE)
-        self.assertEqual(derivacion.creado_por, self.user_a)
+        self.assertEqual(derivacion.creado_por, self.recepcion)
 
         solicitud = derivacion.solicitud_turno
         self.assertIsNotNone(solicitud)
@@ -176,7 +177,7 @@ class CreacionDerivacionTests(BaseDerivacionesTests):
 
         self.assertTrue(
             LogAcceso.objects.filter(
-                usuario=self.user_a,
+                usuario=self.recepcion,
                 accion='crear',
                 modelo='Derivacion',
                 objeto_id=derivacion.pk,
@@ -184,10 +185,11 @@ class CreacionDerivacionTests(BaseDerivacionesTests):
         )
 
     def test_motivo_es_obligatorio(self):
-        self.login(self.user_a)
+        self.login(self.recepcion)
         response = self.client.post(
             self.url_crear(),
             {
+                'profesional_origen': self.prof_a.pk,
                 'profesional_destino': self.prof_b.pk,
                 'motivo': '   ',
             },
@@ -197,10 +199,11 @@ class CreacionDerivacionTests(BaseDerivacionesTests):
         self.assertFalse(Derivacion.objects.exists())
 
     def test_destino_no_puede_ser_igual_al_origen(self):
-        self.login(self.user_a)
+        self.login(self.recepcion)
         response = self.client.post(
             self.url_crear(),
             {
+                'profesional_origen': self.prof_a.pk,
                 'profesional_destino': self.prof_a.pk,
                 'motivo': 'Intento inválido.',
             },
@@ -213,10 +216,11 @@ class CreacionDerivacionTests(BaseDerivacionesTests):
         self.prof_b.activo = False
         self.prof_b.save(update_fields=['activo'])
 
-        self.login(self.user_a)
+        self.login(self.recepcion)
         response = self.client.post(
             self.url_crear(),
             {
+                'profesional_origen': self.prof_a.pk,
                 'profesional_destino': self.prof_b.pk,
                 'motivo': 'Intento inválido.',
             },
@@ -226,10 +230,11 @@ class CreacionDerivacionTests(BaseDerivacionesTests):
         self.assertFalse(Derivacion.objects.exists())
 
     def test_destino_sin_usuario_crea_derivacion_y_avisa(self):
-        self.login(self.user_a)
+        self.login(self.recepcion)
         response = self.client.post(
             self.url_crear(),
             {
+                'profesional_origen': self.prof_a.pk,
                 'profesional_destino': self.prof_sin_usuario.pk,
                 'motivo': 'Interconsulta.',
             },
@@ -248,25 +253,8 @@ class CreacionDerivacionTests(BaseDerivacionesTests):
             'notificaciones en la app.',
         )
 
-    def test_recepcion_no_puede_crear_y_admin_si(self):
+    def test_recepcion_y_admin_pueden_crear(self):
         self.login(self.recepcion)
-        self.assertEqual(
-            self.client.get(self.url_crear()).status_code,
-            403,
-        )
-        self.assertEqual(
-            self.client.post(
-                self.url_crear(),
-                {
-                    'profesional_destino': self.prof_b.pk,
-                    'motivo': 'No permitido.',
-                },
-            ).status_code,
-            403,
-        )
-        self.assertFalse(Derivacion.objects.exists())
-
-        self.login(self.admin)
         formulario = self.client.get(self.url_crear())
         self.assertEqual(formulario.status_code, 200)
         self.assertContains(formulario, 'Profesional de origen')
@@ -276,7 +264,7 @@ class CreacionDerivacionTests(BaseDerivacionesTests):
             {
                 'profesional_origen': self.prof_a.pk,
                 'profesional_destino': self.prof_b.pk,
-                'motivo': 'Derivación creada por administración.',
+                'motivo': 'Derivación creada por recepción.',
             },
         )
         derivacion = Derivacion.objects.get()
@@ -285,25 +273,50 @@ class CreacionDerivacionTests(BaseDerivacionesTests):
             reverse('derivaciones:detalle', args=[derivacion.pk]),
         )
         self.assertEqual(derivacion.profesional_origen, self.prof_a)
-        self.assertEqual(derivacion.creado_por, self.admin)
+        self.assertEqual(derivacion.creado_por, self.recepcion)
         self.assertIsNotNone(derivacion.solicitud_turno)
 
-    def test_profesional_no_puede_derivar_paciente_ajeno(self):
-        self.login(self.user_b)
-        self.assertEqual(
-            self.client.get(self.url_crear()).status_code,
-            404,
+        self.login(self.admin)
+        formulario = self.client.get(self.url_crear())
+        self.assertEqual(formulario.status_code, 200)
+        self.assertContains(formulario, 'Profesional de origen')
+
+        response = self.client.post(
+            self.url_crear(),
+            {
+                'profesional_origen': self.prof_b.pk,
+                'profesional_destino': self.prof_c.pk,
+                'motivo': 'Derivación creada por administración.',
+            },
         )
-        self.assertEqual(
-            self.client.post(
-                self.url_crear(),
-                {
-                    'profesional_destino': self.prof_c.pk,
-                    'motivo': 'No permitido.',
-                },
-            ).status_code,
-            404,
+        nueva = Derivacion.objects.exclude(pk=derivacion.pk).get()
+        self.assertRedirects(
+            response,
+            reverse('derivaciones:detalle', args=[nueva.pk]),
         )
+        self.assertEqual(nueva.profesional_origen, self.prof_b)
+        self.assertEqual(nueva.creado_por, self.admin)
+        self.assertIsNotNone(nueva.solicitud_turno)
+
+    def test_profesional_no_puede_crear_derivacion(self):
+        for usuario in (self.user_a, self.user_b):
+            with self.subTest(usuario=usuario.username):
+                self.login(usuario)
+                self.assertEqual(
+                    self.client.get(self.url_crear()).status_code,
+                    403,
+                )
+                self.assertEqual(
+                    self.client.post(
+                        self.url_crear(),
+                        {
+                            'profesional_origen': self.prof_a.pk,
+                            'profesional_destino': self.prof_c.pk,
+                            'motivo': 'No permitido.',
+                        },
+                    ).status_code,
+                    403,
+                )
         self.assertFalse(Derivacion.objects.exists())
 
     def test_reutiliza_la_solicitud_pendiente_existente(self):
@@ -315,10 +328,11 @@ class CreacionDerivacionTests(BaseDerivacionesTests):
             nota='Solicitud previa de B.',
         )
 
-        self.login(self.user_a)
+        self.login(self.recepcion)
         self.client.post(
             self.url_crear(),
             {
+                'profesional_origen': self.prof_a.pk,
                 'profesional_destino': self.prof_b.pk,
                 'motivo': 'Nuevo motivo de derivación.',
             },
@@ -727,16 +741,26 @@ class BandejaYContadoresTests(BaseDerivacionesTests):
         self.assertContains(response, 'Enviada por B.')
         self.assertContains(response, 'solo lectura')
 
-    def test_ficha_muestra_cartel_y_boton_de_derivar(self):
+    def test_ficha_muestra_cartel_y_boton_solo_para_recepcion(self):
         derivacion = self.crear_derivacion()
+        url_crear = reverse(
+            'derivaciones:crear', args=[self.paciente.pk]
+        )
 
+        # Los profesionales no ven el botón para derivar.
+        for usuario in (self.user_a, self.user_b):
+            with self.subTest(usuario=usuario.username):
+                self.login(usuario)
+                response = self.client.get(
+                    reverse('pacientes:detalle', args=[self.paciente.pk])
+                )
+                self.assertNotContains(response, 'Derivar paciente')
+                self.assertNotContains(response, url_crear)
+
+        # El destino sí ve el cartel de la derivación recibida.
         self.login(self.user_b)
         response = self.client.get(
             reverse('pacientes:detalle', args=[self.paciente.pk])
-        )
-        self.assertContains(
-            response,
-            reverse('derivaciones:crear', args=[self.paciente.pk]),
         )
         self.assertContains(response, 'Derivado por')
         self.assertContains(response, derivacion.motivo)
@@ -745,21 +769,18 @@ class BandejaYContadoresTests(BaseDerivacionesTests):
             timezone.localtime(derivacion.creado).strftime('%d/%m/%Y'),
         )
 
-        self.login(self.user_a)
-        response = self.client.get(
-            reverse('pacientes:detalle', args=[self.paciente.pk])
-        )
-        self.assertContains(response, 'Derivar paciente')
-        self.assertNotContains(response, 'Derivado por')
+        # Recepción y administración ven el botón.
+        for usuario in (self.recepcion, self.admin):
+            with self.subTest(usuario=usuario.username):
+                self.login(usuario)
+                response = self.client.get(
+                    reverse('pacientes:detalle', args=[self.paciente.pk])
+                )
+                self.assertContains(response, 'Derivar paciente')
+                self.assertContains(response, url_crear)
 
+    def test_busqueda_de_profesionales_solo_para_recepcion(self):
         self.login(self.recepcion)
-        response = self.client.get(
-            reverse('pacientes:detalle', args=[self.paciente.pk])
-        )
-        self.assertNotContains(response, 'Derivar paciente')
-
-    def test_busqueda_de_profesionales_excluye_al_origen(self):
-        self.login(self.user_a)
         response = self.client.get(
             reverse('derivaciones:buscar_profesionales'),
             {'q': 'Derivaciones'},
@@ -767,10 +788,19 @@ class BandejaYContadoresTests(BaseDerivacionesTests):
         self.assertEqual(response.status_code, 200)
         resultados = {item['id']: item for item in response.json()['results']}
 
-        self.assertNotIn(self.prof_a.pk, resultados)
+        self.assertIn(self.prof_a.pk, resultados)
         self.assertTrue(resultados[self.prof_b.pk]['tiene_usuario'])
         self.assertFalse(
             resultados[self.prof_sin_usuario.pk]['tiene_usuario']
+        )
+
+        # Los profesionales no acceden al buscador de derivaciones.
+        self.login(self.user_a)
+        self.assertEqual(
+            self.client.get(
+                reverse('derivaciones:buscar_profesionales')
+            ).status_code,
+            403,
         )
 
         self.client.logout()

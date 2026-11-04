@@ -1,0 +1,36 @@
+{% extends 'registration/auth_base.html' %}
+{% load static custom_filters %}
+
+{% block title %}Acceso bloqueado — {{ NOMBRE_CENTRO }}{% endblock %}
+
+{% block auth_content %}
+{% include 'registration/_brand.html' %}
+
+<section class="login-card" aria-labelledby="lockout-title">
+    <div class="card-icon" aria-hidden="true">
+        <img class="card-logo--color" src="{% static 'img/logo-color-transparente.png' %}" alt="" width="605" height="512" decoding="async">
+        <img class="card-logo--white" src="{% static 'img/logo-blanco-256.png' %}" alt="" width="303" height="256" decoding="async">
+    </div>
+
+    <h2 class="card-title" id="lockout-title">Acceso bloqueado</h2>
+    <p class="subtitle">El ingreso quedó pausado por seguridad.</p>
+
+    <div class="form-alert" role="alert">
+        <i class="fas fa-lock" aria-hidden="true"></i>
+        <div>
+            <p>Demasiados intentos fallidos. Por seguridad, el acceso con este usuario está bloqueado temporalmente. Probá de nuevo en {{ cooloff_timedelta|minutos|default:"15" }} minutos o pedí a administración que te desbloquee.</p>
+        </div>
+    </div>
+
+    <p class="lockout-note">
+        Si no recordás tu contraseña, administración puede ayudarte a restablecerla.
+    </p>
+
+    <div class="lockout-actions">
+        <a class="btn-submit" href="{% url 'login' %}">
+            <span>Volver al inicio de sesión</span>
+            <i class="fas fa-arrow-left btn-arrow" aria-hidden="true"></i>
+        </a>
+    </div>
+</section>
+{% endblock %}
