@@ -2,11 +2,12 @@ from django.views.generic import TemplateView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.utils import timezone
 from django.db.models import Count, Q, Sum
-from datetime import date, datetime, time, timedelta
+from datetime import datetime, time, timedelta
 from decimal import Decimal
 from pacientes.models import Paciente
 from profesionales.models import Profesional
 from turnos.models import Turno, EstadoTurno, FormaPago
+from turnos.utils import rango_del_dia
 from historias.models import Consulta
 from derivaciones.models import Derivacion, EstadoDerivacion
 from consultorio_salto.permisos import RecepcionOProfesionalMixin, es_recepcion
@@ -26,8 +27,12 @@ class DashboardView(RecepcionOProfesionalMixin, LoginRequiredMixin, TemplateView
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        hoy = date.today()
-        turnos_hoy = Turno.objects.filter(fecha_hora__date=hoy)
+        hoy = timezone.localdate()
+        inicio_hoy, fin_hoy = rango_del_dia(hoy)
+        turnos_hoy = Turno.objects.filter(
+            fecha_hora__gte=inicio_hoy,
+            fecha_hora__lt=fin_hoy,
+        )
 
         if self.profesional:
             pacientes = Paciente.objects.atendidos_por(self.profesional)
@@ -53,6 +58,10 @@ class DashboardView(RecepcionOProfesionalMixin, LoginRequiredMixin, TemplateView
         ctx['total_pacientes'] = pacientes.count()
         ctx['turnos_hoy'] = turnos_hoy.count()
         ctx['turnos_pendientes'] = turnos_hoy.filter(estado=EstadoTurno.PENDIENTE).count()
+        ctx['en_sala_espera'] = turnos_hoy.filter(
+            hora_llegada__isnull=False,
+            estado__in=[EstadoTurno.PENDIENTE, EstadoTurno.CONFIRMADO],
+        ).count()
         ctx['turnos_hoy_lista'] = turnos_hoy.select_related('paciente', 'profesional').order_by('fecha_hora')[:8]
         ctx['pacientes_recientes'] = pacientes.order_by('-fecha_alta')[:5]
         ctx['consultas_recientes'] = consultas.select_related('paciente', 'profesional').order_by('-fecha_hora')[:5]
@@ -111,7 +120,11 @@ class DashboardView(RecepcionOProfesionalMixin, LoginRequiredMixin, TemplateView
         nombres_dias = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
         for i in range(7):
             dia = lunes + timedelta(days=i)
-            turnos_dia = Turno.objects.filter(fecha_hora__date=dia)
+            inicio_dia, fin_dia = rango_del_dia(dia)
+            turnos_dia = Turno.objects.filter(
+                fecha_hora__gte=inicio_dia,
+                fecha_hora__lt=fin_dia,
+            )
             if self.profesional:
                 turnos_dia = turnos_dia.filter(profesional=self.profesional)
             total = turnos_dia.count()
@@ -127,7 +140,11 @@ class DashboardView(RecepcionOProfesionalMixin, LoginRequiredMixin, TemplateView
 
         # Próximos turnos (mañana)
         manana = hoy + timedelta(days=1)
-        turnos_manana = Turno.objects.filter(fecha_hora__date=manana)
+        inicio_manana, fin_manana = rango_del_dia(manana)
+        turnos_manana = Turno.objects.filter(
+            fecha_hora__gte=inicio_manana,
+            fecha_hora__lt=fin_manana,
+        )
         if self.profesional:
             turnos_manana = turnos_manana.filter(profesional=self.profesional)
         ctx['turnos_manana'] = turnos_manana.select_related('paciente', 'profesional').order_by('fecha_hora')[:5]

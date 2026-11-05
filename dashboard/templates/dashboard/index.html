@@ -304,6 +304,13 @@
         </div>
     </div>
     <div class="stat-card">
+        <div class="stat-icon green"><i class="fas fa-chair" aria-hidden="true"></i></div>
+        <div>
+            <div class="stat-value">{{ en_sala_espera }}</div>
+            <div class="stat-label">En sala de espera</div>
+        </div>
+    </div>
+    <div class="stat-card">
         <div class="stat-icon purple"><i class="fas fa-hourglass-half" aria-hidden="true"></i></div>
         <div>
             <div class="stat-value">{{ turnos_pendientes }}</div>
@@ -422,7 +429,14 @@
                     <td><strong>{{ turno.fecha_hora|date:"H:i" }}</strong></td>
                     <td>{{ turno.paciente.apellido }}, {{ turno.paciente.nombre }}</td>
                     <td>{{ turno.profesional.apellido }}</td>
-                    <td><span class="badge badge-{{ turno.estado }}">{{ turno.get_estado_display }}</span></td>
+                    <td>
+                        <div class="actions-row" style="gap:6px;">
+                            <span class="badge badge-{{ turno.estado }}">{{ turno.get_estado_display }}</span>
+                            {% if turno.en_sala_espera %}
+                            <span class="badge badge-realizado"><i class="fas fa-chair" aria-hidden="true"></i> En sala</span>
+                            {% endif %}
+                        </div>
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>

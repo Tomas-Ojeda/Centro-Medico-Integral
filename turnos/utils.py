@@ -1,8 +1,33 @@
-"""Helpers de presentación para el registro interno de pagos."""
+"""Helpers de presentación y consultas de turnos."""
 
+from datetime import datetime, time, timedelta
 from decimal import Decimal, InvalidOperation
 
+from django.utils import timezone
+
 from .models import FormaPago
+
+
+def rango_del_dia(fecha):
+    """Inicio y fin (exclusivo) del día en la zona horaria del proyecto.
+
+    Usar rangos permite aprovechar el índice de ``fecha_hora`` en PostgreSQL
+    y SQLite, a diferencia de ``fecha_hora__date``.
+    """
+    tz = timezone.get_current_timezone()
+    inicio = timezone.make_aware(datetime.combine(fecha, time.min), tz)
+    return inicio, inicio + timedelta(days=1)
+
+
+def fecha_desde_request(request, parametro='fecha'):
+    """Fecha YYYY-MM-DD del request; hoy si falta o es inválida."""
+    valor = request.GET.get(parametro)
+    if valor:
+        try:
+            return datetime.strptime(valor, '%Y-%m-%d').date()
+        except (TypeError, ValueError):
+            pass
+    return timezone.localdate()
 
 
 def formatear_pesos(valor):

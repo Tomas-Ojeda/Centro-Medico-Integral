@@ -6,6 +6,131 @@
 {% block page_title %}Agenda de Turnos{% endblock %}
 {% block page_subtitle %}{{ total_dia }} turno{{ total_dia|pluralize }} para hoy{% endblock %}
 
+{% block extra_css %}
+<style>
+    .sala-espera-card { padding: 18px 20px; }
+    .sala-espera-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-bottom: 12px;
+    }
+    .sala-espera-head .card-title {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+    .sala-espera-head .card-title i { color: var(--accent-text); }
+    [data-theme="dark"] .sala-espera-head .card-title i { color: var(--accent); }
+    .sala-grupo-titulo {
+        margin: 14px 0 8px;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: .05em;
+        text-transform: uppercase;
+        color: var(--text-secondary);
+    }
+    .sala-grupo-titulo:first-child { margin-top: 0; }
+    .sala-lista {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+    .sala-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        flex-wrap: wrap;
+        min-width: 0;
+        padding: 10px 12px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: var(--bg-main);
+    }
+    .sala-item--max {
+        border-color: color-mix(in srgb, #22c55e 45%, var(--border));
+        background: color-mix(in srgb, #22c55e 8%, var(--bg-card));
+    }
+    .sala-pos {
+        flex: 0 0 auto;
+        font-weight: 700;
+        color: var(--text-secondary);
+    }
+    .sala-datos { flex: 1 1 180px; min-width: 0; }
+    .sala-paciente {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-primary);
+        overflow-wrap: anywhere;
+    }
+    .sala-meta {
+        margin-top: 2px;
+        font-size: 11.5px;
+        color: var(--text-secondary);
+    }
+    .sala-vacia {
+        margin: 0;
+        font-size: 13px;
+        color: var(--text-secondary);
+    }
+    .sala-acciones {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 8px;
+        flex-wrap: wrap;
+        min-width: 0;
+    }
+    .sala-estado {
+        display: inline-block;
+        padding: 3px 9px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 600;
+        line-height: 1.35;
+    }
+    .sala-estado--no-llego {
+        color: var(--text-secondary);
+        background: color-mix(in srgb, var(--text-secondary) 8%, var(--bg-card));
+        border: 1px solid var(--border);
+    }
+    .sala-estado--en-sala {
+        color: #15803d;
+        background: #f0fdf4;
+        border: 1px solid #bbf7d0;
+    }
+    [data-theme="dark"] .sala-estado--en-sala {
+        color: #4ade80;
+        background: rgba(34, 197, 94, 0.15);
+        border-color: rgba(34, 197, 94, 0.3);
+    }
+    .sala-undo {
+        padding: 2px 2px;
+        border: none;
+        background: none;
+        color: var(--accent-text);
+        font-size: 11px;
+        font-weight: 600;
+        text-decoration: underline;
+        white-space: nowrap;
+    }
+    .sala-undo:hover { color: var(--accent); }
+    @media (max-width: 900px) {
+        .sala-espera-card { padding: 16px; }
+        .sala-acciones { justify-content: flex-start; }
+        .sala-item { padding: 9px 10px; }
+    }
+</style>
+{% endblock %}
+
 {% block header_action %}
 <div class="actions-row">
     <div style="display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;">
@@ -67,6 +192,11 @@
         {% for prof in profesionales %}
         <option value="{{ prof.pk }}" {% if filtro_profesional == prof.pk|stringformat:"s" %}selected{% endif %}>{{ prof.apellido }}, {{ prof.nombre }}</option>
         {% endfor %}
+    </select>
+
+    <select name="orden" style="min-width:190px;" onchange="this.form.submit()" aria-label="Ordenar turnos">
+        <option value="hora" {% if orden == 'hora' %}selected{% endif %}>Ordenar por: hora del turno</option>
+        <option value="llegada" {% if orden == 'llegada' %}selected{% endif %}>Ordenar por: orden de llegada</option>
     </select>
 
     <a href="{% url 'turnos:agenda' %}" class="btn btn-outline">✕</a>
@@ -145,10 +275,53 @@
 </div>
 {% else %}
 
+{% if es_hoy %}
+<div class="card sala-espera-card" id="sala-espera-panel"
+     data-sala-url="{{ sala_url }}"
+     data-agrupado="{% if es_recepcion %}1{% else %}0{% endif %}"
+     data-es-hoy="1">
+    <div class="sala-espera-head">
+        <span class="card-title">
+            <i class="fas fa-chair" aria-hidden="true"></i> Sala de espera
+        </span>
+        <span class="badge badge-realizado" id="sala-espera-total">{{ total_sala }}</span>
+    </div>
+    <div id="sala-espera-contenido">
+        {% if grupos_sala %}
+            {% for grupo in grupos_sala %}
+            {% if es_recepcion %}
+            <div class="sala-grupo-titulo">{{ grupo.profesional.apellido }}, {{ grupo.profesional.nombre }}</div>
+            {% endif %}
+            <ol class="sala-lista">
+                {% for turno in grupo.cola %}
+                <li class="sala-item{% if turno.resaltado_sala %} sala-item--max{% endif %}">
+                    <span class="sala-pos">{{ turno.posicion_sala }}.</span>
+                    <div class="sala-datos">
+                        <div class="sala-paciente">{{ turno.paciente.apellido }}, {{ turno.paciente.nombre }}</div>
+                        <div class="sala-meta">
+                            Turno {{ turno.fecha_hora|date:"H:i" }} ·
+                            Llegó {{ turno.hora_llegada|date:"H:i" }} ·
+                            hace {{ turno.espera_minutos }} min
+                        </div>
+                    </div>
+                    {% if turno.resaltado_sala %}
+                    <span class="badge badge-realizado">Más espera</span>
+                    {% endif %}
+                </li>
+                {% endfor %}
+            </ol>
+            {% endfor %}
+        {% else %}
+        <p class="sala-vacia">Nadie en sala de espera</p>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
 {% if turnos %}
 <div class="card" style="padding:0;overflow:hidden;">
     {% for turno in turnos %}
-    <div class="stack-mobile" style="display:flex;align-items:center;gap:16px;padding:16px 20px;border-bottom:1px solid var(--border);">
+    <div class="stack-mobile" style="display:flex;align-items:center;gap:16px;padding:16px 20px;border-bottom:1px solid var(--border);" data-turno-id="{{ turno.pk }}">
         <!-- HORA -->
         <div style="min-width:52px;text-align:center;">
             <div style="font-size:17px;font-weight:700;color:var(--text-primary);">{{ turno.fecha_hora|date:"H:i" }}</div>
@@ -193,27 +366,54 @@
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
             <span class="badge badge-{{ turno.estado }}">{{ turno.get_estado_display }}</span>
 
+            {% if es_hoy and turno.estado == 'pendiente' or es_hoy and turno.estado == 'confirmado' %}
+            <div class="sala-acciones">
+                <span class="sala-estado js-estado-llegada {% if turno.en_sala_espera %}sala-estado--en-sala{% else %}sala-estado--no-llego{% endif %}"
+                      data-turno-id="{{ turno.pk }}">
+                    {% if turno.en_sala_espera %}En sala de espera · llegó {{ turno.hora_llegada|date:"H:i" }} · hace {{ turno.espera_minutos }} min{% else %}No llegó{% endif %}
+                </span>
+                {% if es_recepcion %}
+                <form method="post" action="{% url 'turnos:llegada' turno.pk %}"
+                      class="js-form-llegada" data-turno-id="{{ turno.pk }}" style="display:inline;">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                    <button type="submit"
+                            class="btn btn-sm {% if turno.en_sala_espera %}sala-undo{% else %}btn-success{% endif %} js-btn-llegada"
+                            title="{% if turno.en_sala_espera %}Deshacer llegada{% else %}Marcar llegada{% endif %}">
+                        <i class="{% if turno.en_sala_espera %}fas fa-rotate-left{% else %}fas fa-user-check{% endif %}" aria-hidden="true"></i>
+                        <span class="js-btn-llegada-texto">{% if turno.en_sala_espera %}Deshacer{% else %}Llegó{% endif %}</span>
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+            {% endif %}
+
             {% if es_recepcion %}
             {% if turno.estado == 'pendiente' %}
             <form method="post" action="{% url 'turnos:cambiar_estado' turno.pk 'confirmado' %}" style="display:inline;">
                 {% csrf_token %}
+                <input type="hidden" name="next" value="{{ request.get_full_path }}">
                 <button type="submit" class="btn btn-sm btn-success">Confirmar</button>
             </form>
             <form method="post" action="{% url 'turnos:cambiar_estado' turno.pk 'realizado' %}" style="display:inline;">
                 {% csrf_token %}
+                <input type="hidden" name="next" value="{{ request.get_full_path }}">
                 <button type="submit" class="btn btn-sm btn-outline">Realizado</button>
             </form>
             <form method="post" action="{% url 'turnos:cambiar_estado' turno.pk 'ausente' %}" style="display:inline;">
                 {% csrf_token %}
+                <input type="hidden" name="next" value="{{ request.get_full_path }}">
                 <button type="submit" class="btn btn-sm btn-outline">Ausente</button>
             </form>
             {% elif turno.estado == 'confirmado' %}
             <form method="post" action="{% url 'turnos:cambiar_estado' turno.pk 'realizado' %}" style="display:inline;">
                 {% csrf_token %}
+                <input type="hidden" name="next" value="{{ request.get_full_path }}">
                 <button type="submit" class="btn btn-sm btn-success">Realizado</button>
             </form>
             <form method="post" action="{% url 'turnos:cambiar_estado' turno.pk 'ausente' %}" style="display:inline;">
                 {% csrf_token %}
+                <input type="hidden" name="next" value="{{ request.get_full_path }}">
                 <button type="submit" class="btn btn-sm btn-outline">Ausente</button>
             </form>
             {% endif %}
@@ -259,6 +459,142 @@
         timer = setTimeout(function() {
             document.getElementById('form-agenda').submit();
         }, 350);
+    });
+})();
+
+(function() {
+    const panel = document.getElementById('sala-espera-panel');
+    if (!panel || panel.dataset.esHoy !== '1') return;
+
+    const url = panel.dataset.salaUrl;
+    const contenido = document.getElementById('sala-espera-contenido');
+    const total = document.getElementById('sala-espera-total');
+    const agrupado = panel.dataset.agrupado === '1';
+    let consultando = false;
+
+    if (!url || !contenido) return;
+
+    function texto(tag, clase, valor) {
+        const nodo = document.createElement(tag);
+        if (clase) nodo.className = clase;
+        nodo.textContent = valor;
+        return nodo;
+    }
+
+    function crearItem(turno, posicion, resaltado) {
+        const item = document.createElement('li');
+        item.className = 'sala-item' + (resaltado ? ' sala-item--max' : '');
+
+        item.appendChild(texto('span', 'sala-pos', posicion + '.'));
+
+        const datos = document.createElement('div');
+        datos.className = 'sala-datos';
+        datos.appendChild(texto('div', 'sala-paciente', turno.paciente || ''));
+        datos.appendChild(texto(
+            'div',
+            'sala-meta',
+            'Turno ' + (turno.hora_turno || '') +
+            ' · Llegó ' + (turno.hora_llegada || '') +
+            ' · hace ' + (turno.espera_minutos || 0) + ' min'
+        ));
+        item.appendChild(datos);
+
+        if (resaltado) {
+            item.appendChild(texto('span', 'badge badge-realizado', 'Más espera'));
+        }
+        return item;
+    }
+
+    function renderizar(data) {
+        const cantidad = Number(data.total) || 0;
+        if (total) total.textContent = String(cantidad);
+
+        contenido.replaceChildren();
+        if (!cantidad) {
+            contenido.appendChild(texto('p', 'sala-vacia', 'Nadie en sala de espera'));
+            return;
+        }
+
+        const grupos = agrupado
+            ? (data.grupos || [])
+            : [{ profesional: '', turnos: data.cola || [] }];
+
+        grupos.forEach(function(grupo) {
+            if (agrupado) {
+                contenido.appendChild(texto(
+                    'div',
+                    'sala-grupo-titulo',
+                    grupo.profesional || ''
+                ));
+            }
+            const lista = document.createElement('ol');
+            lista.className = 'sala-lista';
+            (grupo.turnos || []).forEach(function(turno, indice) {
+                lista.appendChild(crearItem(turno, indice + 1, indice === 0));
+            });
+            contenido.appendChild(lista);
+        });
+    }
+
+    function actualizarEstados(data) {
+        const llegadas = data.llegadas || {};
+        const esperas = data.esperas || {};
+
+        document.querySelectorAll('.js-estado-llegada').forEach(function(estado) {
+            const id = estado.dataset.turnoId;
+            const hora = llegadas[id];
+            if (hora) {
+                estado.className = 'sala-estado js-estado-llegada sala-estado--en-sala';
+                estado.textContent = 'En sala de espera · llegó ' + hora +
+                    ' · hace ' + (Number(esperas[id]) || 0) + ' min';
+            } else {
+                estado.className = 'sala-estado js-estado-llegada sala-estado--no-llego';
+                estado.textContent = 'No llegó';
+            }
+        });
+
+        document.querySelectorAll('.js-form-llegada').forEach(function(form) {
+            const id = form.dataset.turnoId;
+            const enSala = Boolean(llegadas[id]);
+            const boton = form.querySelector('.js-btn-llegada');
+            const etiqueta = form.querySelector('.js-btn-llegada-texto');
+            const icono = form.querySelector('i');
+            if (!boton || !etiqueta) return;
+
+            etiqueta.textContent = enSala ? 'Deshacer' : 'Llegó';
+            boton.classList.toggle('sala-undo', enSala);
+            boton.classList.toggle('btn-success', !enSala);
+            boton.title = enSala ? 'Deshacer llegada' : 'Marcar llegada';
+            if (icono) {
+                icono.className = enSala
+                    ? 'fas fa-rotate-left'
+                    : 'fas fa-user-check';
+            }
+        });
+    }
+
+    async function actualizar() {
+        if (document.visibilityState !== 'visible' || consultando) return;
+        consultando = true;
+        try {
+            const respuesta = await fetch(url, {
+                headers: {'X-Requested-With': 'XMLHttpRequest'},
+                credentials: 'same-origin'
+            });
+            if (!respuesta.ok) return;
+            const data = await respuesta.json();
+            renderizar(data);
+            actualizarEstados(data);
+        } catch (error) {
+            // Sin conexión: se conserva lo último mostrado.
+        } finally {
+            consultando = false;
+        }
+    }
+
+    window.setInterval(actualizar, 30000);
+    document.addEventListener('visibilitychange', function() {
+        if (document.visibilityState === 'visible') actualizar();
     });
 })();
 </script>

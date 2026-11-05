@@ -6,10 +6,21 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views import View
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.utils import timezone
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.db import transaction
-from django.db.models import Count, Q
+from django.db.models import (
+    Case,
+    Count,
+    DateTimeField,
+    F,
+    IntegerField,
+    Q,
+    Value,
+    When,
+)
 from django.http import HttpResponse, JsonResponse
-from datetime import date, datetime, time, timedelta
+from datetime import datetime, time, timedelta
+from urllib.parse import urlencode
 import csv
 from .models import (
     EstadoSolicitud,
@@ -23,7 +34,7 @@ from .forms import (
     SolicitudTurnoForm,
     TurnoForm,
 )
-from .utils import texto_pago
+from .utils import fecha_desde_request, rango_del_dia, texto_pago
 from historias.models import AdjuntoHistoria
 from profesionales.models import Profesional
 from pacientes.models import Paciente
@@ -34,6 +45,101 @@ from consultorio_salto.permisos import (
 )
 
 
+ESTADOS_EN_SALA = (EstadoTurno.PENDIENTE, EstadoTurno.CONFIRMADO)
+CAMPOS_FILTRO_AGENDA = ('especialidad', 'profesional', 'q', 'orden', 'vista')
+
+
+def aplicar_filtros_agenda(queryset, request, profesional):
+    """Aplica los filtros visibles de la agenda a un queryset de turnos."""
+    if profesional:
+        queryset = queryset.filter(profesional=profesional)
+
+    especialidad = request.GET.get('especialidad', '')
+    profesional_id = request.GET.get('profesional', '')
+    q = request.GET.get('q', '').strip()
+
+    if especialidad:
+        queryset = queryset.filter(
+            profesional__especialidades__nombre__iexact=especialidad
+        ).distinct()
+    if profesional_id:
+        queryset = queryset.filter(profesional_id=profesional_id)
+    if q:
+        queryset = queryset.filter(
+            Q(paciente__nombre__icontains=q) |
+            Q(paciente__apellido__icontains=q) |
+            Q(paciente__dni__icontains=q)
+        )
+    return queryset
+
+
+def ordenar_turnos(queryset, orden):
+    """Orden de la agenda; con ``llegada`` la sala de espera va primero."""
+    if orden != 'llegada':
+        return queryset.order_by('fecha_hora')
+
+    en_sala = Q(
+        hora_llegada__isnull=False,
+        estado__in=ESTADOS_EN_SALA,
+    )
+    return queryset.annotate(
+        _prioridad_sala=Case(
+            When(en_sala, then=Value(0)),
+            default=Value(1),
+            output_field=IntegerField(),
+        ),
+        _orden_llegada=Case(
+            When(en_sala, then=F('hora_llegada')),
+            default=Value(None),
+            output_field=DateTimeField(),
+        ),
+    ).order_by(
+        '_prioridad_sala',
+        F('_orden_llegada').asc(nulls_last=True),
+        'fecha_hora',
+    )
+
+
+def url_de_retorno(request, por_defecto):
+    """Devuelve ``next`` solo si es un destino local y seguro."""
+    destino = request.POST.get('next') or request.GET.get('next')
+    if destino and url_has_allowed_host_and_scheme(
+        destino,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        return destino
+    return por_defecto
+
+
+def agenda_con_filtros(request, fecha):
+    """URL de la agenda conservando fecha y filtros del POST/GET."""
+    params = {'fecha': fecha.isoformat()}
+    for campo in CAMPOS_FILTRO_AGENDA:
+        valor = request.POST.get(campo) or request.GET.get(campo)
+        if valor:
+            params[campo] = valor
+    return f"{reverse('turnos:agenda')}?{urlencode(params)}"
+
+
+def construir_grupos_sala(turnos):
+    """Agrupa la cola por profesional, ordenada por hora de llegada."""
+    grupos = []
+    por_profesional = {}
+    for turno in turnos:
+        clave = turno.profesional_id
+        grupo = por_profesional.get(clave)
+        if grupo is None:
+            grupo = {
+                'profesional': turno.profesional,
+                'cola': [],
+            }
+            por_profesional[clave] = grupo
+            grupos.append(grupo)
+        grupo['cola'].append(turno)
+    return grupos
+
+
 class TurnoAgendaView(RecepcionOProfesionalMixin, LoginRequiredMixin, ListView):
     model = Turno
     template_name = 'turnos/agenda.html'
@@ -41,49 +147,30 @@ class TurnoAgendaView(RecepcionOProfesionalMixin, LoginRequiredMixin, ListView):
 
     def get_queryset(self):
         qs = Turno.objects.select_related(
-            'paciente', 'profesional', 'pago_registrado_por'
+            'paciente', 'profesional', 'pago_registrado_por',
+            'llegada_marcada_por',
         ).prefetch_related('profesional__especialidades').annotate(
             num_adjuntos=Count('adjuntos_historia', distinct=True)
         )
-        if self.profesional:
-            qs = qs.filter(profesional=self.profesional)
-        fecha_str = self.request.GET.get('fecha')
-        especialidad = self.request.GET.get('especialidad', '')
-        profesional_id = self.request.GET.get('profesional', '')
-        q = self.request.GET.get('q', '').strip()
 
-        if fecha_str:
-            try:
-                from datetime import datetime
-                fecha = datetime.strptime(fecha_str, '%Y-%m-%d').date()
-            except ValueError:
-                fecha = date.today()
-        else:
-            fecha = date.today()
+        self.fecha_seleccionada = fecha_desde_request(self.request)
+        inicio, fin = rango_del_dia(self.fecha_seleccionada)
+        qs = qs.filter(fecha_hora__gte=inicio, fecha_hora__lt=fin)
+        qs = aplicar_filtros_agenda(qs, self.request, self.profesional)
 
-        self.fecha_seleccionada = fecha
-        qs = qs.filter(fecha_hora__date=fecha)
-
-        if especialidad:
-            qs = qs.filter(
-                profesional__especialidades__nombre__iexact=especialidad
-            ).distinct()
-        if profesional_id:
-            qs = qs.filter(profesional_id=profesional_id)
-        if q:
-            qs = qs.filter(
-                Q(paciente__nombre__icontains=q) |
-                Q(paciente__apellido__icontains=q) |
-                Q(paciente__dni__icontains=q)
-            )
-
-        return qs.order_by('fecha_hora')
+        self.orden = self.request.GET.get('orden', 'hora')
+        if self.orden not in ('hora', 'llegada'):
+            self.orden = 'hora'
+        return ordenar_turnos(qs, self.orden)
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
+        hoy = timezone.localdate()
         ctx['vista'] = self.request.GET.get('vista', 'lista')
         ctx['fecha_seleccionada'] = self.fecha_seleccionada
-        ctx['hoy'] = date.today()
+        ctx['hoy'] = hoy
+        ctx['es_hoy'] = self.fecha_seleccionada == hoy
+        ctx['orden'] = self.orden
         ctx['fecha_str'] = self.fecha_seleccionada.strftime('%Y-%m-%d')
         ctx['fecha_anterior'] = (self.fecha_seleccionada - timedelta(days=1)).strftime('%Y-%m-%d')
         ctx['fecha_siguiente'] = (self.fecha_seleccionada + timedelta(days=1)).strftime('%Y-%m-%d')
@@ -99,9 +186,15 @@ class TurnoAgendaView(RecepcionOProfesionalMixin, LoginRequiredMixin, ListView):
         ctx['filtro_especialidad'] = self.request.GET.get('especialidad', '')
         ctx['filtro_profesional'] = self.request.GET.get('profesional', '')
         ctx['q'] = self.request.GET.get('q', '')
-        ctx['total_dia'] = self.get_queryset().count()
-        # Stats rápidas del día (para profesionales, solo sus turnos)
-        todos_dia = Turno.objects.filter(fecha_hora__date=self.fecha_seleccionada)
+        turnos_agenda = list(ctx['turnos'])
+        ctx['turnos'] = turnos_agenda
+        ctx['total_dia'] = len(turnos_agenda)
+
+        inicio, fin = rango_del_dia(self.fecha_seleccionada)
+        todos_dia = Turno.objects.filter(
+            fecha_hora__gte=inicio,
+            fecha_hora__lt=fin,
+        )
         if self.profesional:
             todos_dia = todos_dia.filter(profesional=self.profesional)
         ctx['stats_dia'] = {
@@ -110,10 +203,23 @@ class TurnoAgendaView(RecepcionOProfesionalMixin, LoginRequiredMixin, ListView):
             'realizados': todos_dia.filter(estado='realizado').count(),
             'ausentes': todos_dia.filter(estado='ausente').count(),
         }
-        
+
+        # Cola de sala de espera del día (respeta los filtros de la agenda).
+        cola_sala = [turno for turno in turnos_agenda if turno.en_sala_espera]
+        cola_sala.sort(key=lambda turno: turno.hora_llegada)
+        grupos_sala = construir_grupos_sala(cola_sala)
+        for grupo in grupos_sala:
+            for posicion, turno in enumerate(grupo['cola'], start=1):
+                turno.posicion_sala = posicion
+                turno.resaltado_sala = posicion == 1
+        ctx['grupos_sala'] = grupos_sala
+        ctx['total_sala'] = len(cola_sala)
+        ctx['sala_url'] = (
+            f"{reverse('turnos:sala_espera')}?{self.request.GET.urlencode()}"
+        )
+
         # Datos para el calendario mensual
         import calendar
-        from datetime import datetime
         
         mes = self.fecha_seleccionada.month
         anio = self.fecha_seleccionada.year
@@ -185,7 +291,11 @@ class TurnoAgendaView(RecepcionOProfesionalMixin, LoginRequiredMixin, ListView):
         for dia in range(1, dias_en_mes + 1):
             semana_actual.append({
                 'dia': dia,
-                'es_hoy': dia == date.today().day and mes == date.today().month and anio == date.today().year,
+                'es_hoy': (
+                    dia == hoy.day
+                    and mes == hoy.month
+                    and anio == hoy.year
+                ),
                 'turnos': turnos_por_dia.get(dia, [])
             })
             if len(semana_actual) == 7:
@@ -208,8 +318,87 @@ class TurnoAgendaView(RecepcionOProfesionalMixin, LoginRequiredMixin, ListView):
         }
         
         return ctx
-        
-        return ctx
+
+
+class SalaEsperaJSONView(
+    RecepcionOProfesionalMixin,
+    LoginRequiredMixin,
+    View,
+):
+    """Cola de sala de espera para refrescar la agenda sin recargar."""
+
+    def get(self, request):
+        fecha = fecha_desde_request(request)
+        inicio, fin = rango_del_dia(fecha)
+        turnos = Turno.objects.filter(
+            fecha_hora__gte=inicio,
+            fecha_hora__lt=fin,
+            hora_llegada__isnull=False,
+        ).select_related(
+            'paciente', 'profesional'
+        )
+        turnos = aplicar_filtros_agenda(turnos, request, self.profesional)
+        turnos = turnos.order_by('hora_llegada')
+
+        ahora = timezone.now()
+        cola = []
+        grupos = []
+        por_profesional = {}
+        llegadas = {}
+        esperas = {}
+
+        for turno in turnos:
+            hora_llegada = timezone.localtime(turno.hora_llegada)
+            hora_texto = hora_llegada.strftime('%H:%M')
+            minutos = max(
+                0,
+                int((ahora - turno.hora_llegada).total_seconds() // 60),
+            )
+            llegadas[str(turno.pk)] = hora_texto
+            esperas[str(turno.pk)] = minutos
+
+            if not turno.en_sala_espera:
+                continue
+
+            item = {
+                'id': turno.pk,
+                'turno_id': turno.pk,
+                'paciente': (
+                    f'{turno.paciente.apellido}, {turno.paciente.nombre}'
+                ),
+                'hora_turno': timezone.localtime(
+                    turno.fecha_hora
+                ).strftime('%H:%M'),
+                'hora_llegada': hora_texto,
+                'espera_minutos': minutos,
+                'profesional_id': turno.profesional_id,
+                'profesional': (
+                    f'{turno.profesional.apellido}, '
+                    f'{turno.profesional.nombre}'
+                ),
+            }
+            cola.append(item)
+
+            grupo = por_profesional.get(turno.profesional_id)
+            if grupo is None:
+                grupo = {
+                    'profesional_id': turno.profesional_id,
+                    'profesional': item['profesional'],
+                    'turnos': [],
+                }
+                por_profesional[turno.profesional_id] = grupo
+                grupos.append(grupo)
+            grupo['turnos'].append(item)
+
+        return JsonResponse({
+            'fecha': fecha.isoformat(),
+            'cola': cola,
+            'turnos': cola,
+            'grupos': grupos,
+            'llegadas': llegadas,
+            'esperas': esperas,
+            'total': len(cola),
+        })
 
 
 class BuscarPacientesView(SoloRecepcionMixin, LoginRequiredMixin, View):
@@ -270,15 +459,12 @@ class ExportarAgendaCSVView(SoloRecepcionMixin, LoginRequiredMixin, AuditoriaMix
 
     def get(self, request):
         self.registrar_acceso(request)
-        fecha_str = request.GET.get('fecha')
-        try:
-            from datetime import datetime
-            fecha = datetime.strptime(fecha_str, '%Y-%m-%d').date() if fecha_str else date.today()
-        except ValueError:
-            fecha = date.today()
+        fecha = fecha_desde_request(request)
+        inicio, fin = rango_del_dia(fecha)
 
         turnos = Turno.objects.filter(
-            fecha_hora__date=fecha
+            fecha_hora__gte=inicio,
+            fecha_hora__lt=fin,
         ).select_related(
             'paciente', 'profesional', 'pago_registrado_por'
         ).prefetch_related(
@@ -521,14 +707,108 @@ class TurnoDeleteView(SoloRecepcionMixin, LoginRequiredMixin, AuditoriaMixin, De
         return response
 
 
-class CambiarEstadoTurnoView(SoloRecepcionMixin, LoginRequiredMixin, View):
+class CambiarEstadoTurnoView(
+    SoloRecepcionMixin,
+    LoginRequiredMixin,
+    AuditoriaMixin,
+    View,
+):
+    accion = 'editar'
+    modelo = 'Turno'
+
     def post(self, request, pk, estado):
-        turno = get_object_or_404(Turno, pk=pk)
+        turno = get_object_or_404(
+            Turno.objects.select_related('paciente', 'profesional'),
+            pk=pk,
+        )
         estados_validos = [e.value for e in EstadoTurno]
         if estado in estados_validos:
-            turno.estado = estado
-            turno.save()
-        return redirect('turnos:agenda')
+            anterior = turno.estado
+            if anterior != estado:
+                turno.estado = estado
+                turno.save(update_fields=['estado', 'modificado'])
+                self.registrar_acceso(
+                    request,
+                    turno,
+                    detalle=(
+                        'Estado cambiado de '
+                        f'{dict(EstadoTurno.choices).get(anterior, anterior)} '
+                        f'a {dict(EstadoTurno.choices).get(estado, estado)}.'
+                    ),
+                )
+        else:
+            messages.error(request, 'El estado indicado no es válido.')
+
+        fecha = timezone.localtime(turno.fecha_hora).date()
+        return redirect(
+            url_de_retorno(request, agenda_con_filtros(request, fecha))
+        )
+
+
+class MarcarLlegadaView(
+    SoloRecepcionMixin,
+    LoginRequiredMixin,
+    AuditoriaMixin,
+    View,
+):
+    """Marca o deshace la llegada del paciente a la sala de espera."""
+
+    accion = 'editar'
+    modelo = 'Turno'
+
+    def post(self, request, pk):
+        turno = get_object_or_404(
+            Turno.objects.select_related('paciente', 'profesional'),
+            pk=pk,
+        )
+        fecha_turno = timezone.localtime(turno.fecha_hora).date()
+        destino = agenda_con_filtros(request, fecha_turno)
+
+        if fecha_turno != timezone.localdate():
+            messages.error(
+                request,
+                'Solo se puede marcar la llegada el día del turno.',
+            )
+            return redirect(url_de_retorno(request, destino))
+
+        if turno.estado not in ESTADOS_EN_SALA:
+            messages.error(
+                request,
+                'Solo se puede marcar la llegada de turnos pendientes '
+                'o confirmados.',
+            )
+            return redirect(url_de_retorno(request, destino))
+
+        if turno.hora_llegada is None:
+            turno.hora_llegada = timezone.now()
+            turno.llegada_marcada_por = request.user
+            accion = (
+                f'Llegada marcada a las '
+                f'{timezone.localtime(turno.hora_llegada).strftime("%H:%M")}.'
+            )
+        else:
+            turno.hora_llegada = None
+            turno.llegada_marcada_por = None
+            accion = 'Llegada deshecha.'
+
+        turno.save(update_fields=[
+            'hora_llegada',
+            'llegada_marcada_por',
+            'modificado',
+        ])
+        self.registrar_acceso(request, turno, detalle=accion)
+
+        if turno.hora_llegada is None:
+            messages.success(
+                request,
+                'Se deshizo la llegada del paciente.',
+            )
+        else:
+            messages.success(
+                request,
+                'Llegada registrada. El paciente está en sala de espera.',
+            )
+        return redirect(url_de_retorno(request, destino))
 
 
 class RegistrarPagoView(SoloRecepcionMixin, LoginRequiredMixin, AuditoriaMixin, View):

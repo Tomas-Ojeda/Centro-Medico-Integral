@@ -73,6 +73,22 @@ class Turno(models.Model):
         verbose_name='Pago registrado por',
     )
 
+    # ─── Sala de espera ─────────────────────────────────────────
+    hora_llegada = models.DateTimeField(
+        null=True,
+        blank=True,
+        db_index=True,
+        verbose_name='Hora de llegada',
+    )
+    llegada_marcada_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='llegadas_marcadas',
+        verbose_name='Llegada marcada por',
+    )
+
     creado = models.DateTimeField(auto_now_add=True)
     modificado = models.DateTimeField(auto_now=True)
 
@@ -106,6 +122,25 @@ class Turno(models.Model):
         from .utils import texto_pago
 
         return texto_pago(self.forma_pago, self.monto)
+
+    @property
+    def en_sala_espera(self):
+        """Llegó y todavía no fue atendido (ni cancelado/ausente)."""
+        return (
+            self.hora_llegada is not None
+            and self.estado in (
+                EstadoTurno.PENDIENTE,
+                EstadoTurno.CONFIRMADO,
+            )
+        )
+
+    @property
+    def espera_minutos(self):
+        """Minutos transcurridos desde la llegada, o None si no llegó."""
+        if self.hora_llegada is None:
+            return None
+        segundos = (timezone.now() - self.hora_llegada).total_seconds()
+        return max(0, int(segundos // 60))
 
     def save(self, *args, **kwargs):
         if not self.especialidad and self.profesional_id:
