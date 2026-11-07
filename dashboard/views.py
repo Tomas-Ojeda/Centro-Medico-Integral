@@ -58,10 +58,7 @@ class DashboardView(RecepcionOProfesionalMixin, LoginRequiredMixin, TemplateView
         ctx['total_pacientes'] = pacientes.count()
         ctx['turnos_hoy'] = turnos_hoy.count()
         ctx['turnos_pendientes'] = turnos_hoy.filter(estado=EstadoTurno.PENDIENTE).count()
-        ctx['en_sala_espera'] = turnos_hoy.filter(
-            hora_llegada__isnull=False,
-            estado__in=[EstadoTurno.PENDIENTE, EstadoTurno.CONFIRMADO],
-        ).count()
+        ctx['en_sala_espera'] = turnos_hoy.en_sala_espera().count()
         ctx['turnos_hoy_lista'] = turnos_hoy.select_related('paciente', 'profesional').order_by('fecha_hora')[:8]
         ctx['pacientes_recientes'] = pacientes.order_by('-fecha_alta')[:5]
         ctx['consultas_recientes'] = consultas.select_related('paciente', 'profesional').order_by('-fecha_hora')[:5]

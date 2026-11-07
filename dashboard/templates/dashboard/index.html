@@ -435,6 +435,9 @@
                             {% if turno.en_sala_espera %}
                             <span class="badge badge-realizado"><i class="fas fa-chair" aria-hidden="true"></i> En sala</span>
                             {% endif %}
+                            {% if turno.hora_salida and turno.motivo_salida == 'atendiendo' %}
+                            <span class="badge badge-realizado"><i class="fas fa-door-open" aria-hidden="true"></i> En consultorio</span>
+                            {% endif %}
                         </div>
                     </td>
                 </tr>

@@ -24,6 +24,8 @@ urlpatterns = [
     path('<int:pk>/editar/', views.TurnoUpdateView.as_view(), name='editar'),
     path('<int:pk>/pago/', views.RegistrarPagoView.as_view(), name='registrar_pago'),
     path('<int:pk>/llegada/', views.MarcarLlegadaView.as_view(), name='llegada'),
+    path('<int:pk>/salida/', views.SalidaSalaView.as_view(), name='salida'),
+    path('<int:pk>/volvio/', views.VolvioSalaView.as_view(), name='volvio'),
     path('<int:pk>/eliminar/', views.TurnoDeleteView.as_view(), name='eliminar'),
     path('<int:pk>/estado/<str:estado>/', views.CambiarEstadoTurnoView.as_view(), name='cambiar_estado'),
 ]

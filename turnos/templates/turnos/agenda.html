@@ -112,6 +112,26 @@
         background: rgba(34, 197, 94, 0.15);
         border-color: rgba(34, 197, 94, 0.3);
     }
+    .sala-estado--en-consultorio {
+        color: #15803d;
+        background: #f0fdf4;
+        border: 1px solid #bbf7d0;
+    }
+    [data-theme="dark"] .sala-estado--en-consultorio {
+        color: #4ade80;
+        background: rgba(34, 197, 94, 0.15);
+        border-color: rgba(34, 197, 94, 0.3);
+    }
+    .sala-estado--retirado {
+        color: #b91c1c;
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+    }
+    [data-theme="dark"] .sala-estado--retirado {
+        color: #f87171;
+        background: rgba(239, 68, 68, 0.15);
+        border-color: rgba(239, 68, 68, 0.3);
+    }
     .sala-undo {
         padding: 2px 2px;
         border: none;
@@ -279,6 +299,7 @@
 <div class="card sala-espera-card" id="sala-espera-panel"
      data-sala-url="{{ sala_url }}"
      data-agrupado="{% if es_recepcion %}1{% else %}0{% endif %}"
+     data-csrf="{{ csrf_token }}"
      data-es-hoy="1">
     <div class="sala-espera-head">
         <span class="card-title">
@@ -306,6 +327,39 @@
                     </div>
                     {% if turno.resaltado_sala %}
                     <span class="badge badge-realizado">Más espera</span>
+                    {% endif %}
+                    {% if turno.puede_llamar or turno.puede_sacar %}
+                    <div class="sala-acciones">
+                        {% if turno.puede_llamar %}
+                        <form method="post" action="{% url 'turnos:salida' turno.pk %}"
+                              class="js-form-salida" data-turno-id="{{ turno.pk }}"
+                              data-motivo="atendiendo">
+                            {% csrf_token %}
+                            <input type="hidden" name="motivo" value="atendiendo">
+                            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                            <button type="submit" class="btn btn-sm btn-success"
+                                    title="Pasó a consultorio">
+                                <i class="fas fa-door-open" aria-hidden="true"></i>
+                                Pasó a consultorio
+                            </button>
+                        </form>
+                        {% endif %}
+                        {% if turno.puede_sacar %}
+                        <form method="post" action="{% url 'turnos:salida' turno.pk %}"
+                              class="js-form-salida" data-turno-id="{{ turno.pk }}"
+                              data-motivo="retirado"
+                              data-paciente="{{ turno.paciente.apellido }}, {{ turno.paciente.nombre }}">
+                            {% csrf_token %}
+                            <input type="hidden" name="motivo" value="retirado">
+                            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                            <button type="submit" class="btn btn-sm btn-danger"
+                                    aria-label="Se retiró / quitar de la sala"
+                                    title="Se retiró / quitar de la sala">
+                                <i class="fas fa-xmark" aria-hidden="true"></i>
+                            </button>
+                        </form>
+                        {% endif %}
+                    </div>
                     {% endif %}
                 </li>
                 {% endfor %}
@@ -368,13 +422,14 @@
 
             {% if es_hoy and turno.estado == 'pendiente' or es_hoy and turno.estado == 'confirmado' %}
             <div class="sala-acciones">
-                <span class="sala-estado js-estado-llegada {% if turno.en_sala_espera %}sala-estado--en-sala{% else %}sala-estado--no-llego{% endif %}"
+                <span class="sala-estado js-estado-llegada {% if turno.hora_salida %}{% if turno.motivo_salida == 'atendiendo' %}sala-estado--en-consultorio{% else %}sala-estado--retirado{% endif %}{% elif turno.en_sala_espera %}sala-estado--en-sala{% else %}sala-estado--no-llego{% endif %}"
                       data-turno-id="{{ turno.pk }}">
-                    {% if turno.en_sala_espera %}En sala de espera · llegó {{ turno.hora_llegada|date:"H:i" }} · hace {{ turno.espera_minutos }} min{% else %}No llegó{% endif %}
+                    {% if turno.hora_salida %}{% if turno.motivo_salida == 'atendiendo' %}En consultorio desde {{ turno.hora_salida|date:"H:i" }}{% else %}Salió de la sala · {{ turno.hora_salida|date:"H:i" }} (se retiró){% endif %}{% elif turno.en_sala_espera %}En sala de espera · llegó {{ turno.hora_llegada|date:"H:i" }} · hace {{ turno.espera_minutos }} min{% else %}No llegó{% endif %}
                 </span>
                 {% if es_recepcion %}
                 <form method="post" action="{% url 'turnos:llegada' turno.pk %}"
-                      class="js-form-llegada" data-turno-id="{{ turno.pk }}" style="display:inline;">
+                      class="js-form-llegada" data-turno-id="{{ turno.pk }}"
+                      style="display:{% if turno.hora_salida %}none{% else %}inline{% endif %};">
                     {% csrf_token %}
                     <input type="hidden" name="next" value="{{ request.get_full_path }}">
                     <button type="submit"
@@ -382,6 +437,17 @@
                             title="{% if turno.en_sala_espera %}Deshacer llegada{% else %}Marcar llegada{% endif %}">
                         <i class="{% if turno.en_sala_espera %}fas fa-rotate-left{% else %}fas fa-user-check{% endif %}" aria-hidden="true"></i>
                         <span class="js-btn-llegada-texto">{% if turno.en_sala_espera %}Deshacer{% else %}Llegó{% endif %}</span>
+                    </button>
+                </form>
+                <form method="post" action="{% url 'turnos:volvio' turno.pk %}"
+                      class="js-form-volvio" data-turno-id="{{ turno.pk }}"
+                      style="display:{% if turno.hora_salida %}inline{% else %}none{% endif %};">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                    <button type="submit" class="btn btn-sm btn-outline"
+                            title="Volvió a la sala de espera">
+                        <i class="fas fa-rotate-left" aria-hidden="true"></i>
+                        Volvió a la sala
                     </button>
                 </form>
                 {% endif %}
@@ -470,7 +536,10 @@
     const contenido = document.getElementById('sala-espera-contenido');
     const total = document.getElementById('sala-espera-total');
     const agrupado = panel.dataset.agrupado === '1';
+    const csrfToken = panel.dataset.csrf || '';
     let consultando = false;
+    let enviando = false;
+    let dialogoAbierto = false;
 
     if (!url || !contenido) return;
 
@@ -479,6 +548,82 @@
         if (clase) nodo.className = clase;
         nodo.textContent = valor;
         return nodo;
+    }
+
+    function crearFormSalida(turno, motivo, textoBoton, iconoClase, claseBoton) {
+        const form = document.createElement('form');
+        form.method = 'post';
+        form.action = turno.salida_url || '';
+        form.className = 'js-form-salida';
+        form.dataset.turnoId = String(turno.id);
+        form.dataset.motivo = motivo;
+        if (motivo === 'retirado') {
+            form.dataset.paciente = turno.paciente || '';
+        }
+
+        const csrf = document.createElement('input');
+        csrf.type = 'hidden';
+        csrf.name = 'csrfmiddlewaretoken';
+        csrf.value = csrfToken;
+        form.appendChild(csrf);
+
+        const motivoInput = document.createElement('input');
+        motivoInput.type = 'hidden';
+        motivoInput.name = 'motivo';
+        motivoInput.value = motivo;
+        form.appendChild(motivoInput);
+
+        const siguiente = document.createElement('input');
+        siguiente.type = 'hidden';
+        siguiente.name = 'next';
+        siguiente.value = window.location.pathname + window.location.search;
+        form.appendChild(siguiente);
+
+        const boton = document.createElement('button');
+        boton.type = 'submit';
+        boton.className = 'btn btn-sm ' + claseBoton;
+        if (motivo === 'retirado') {
+            boton.setAttribute('aria-label', 'Se retiró / quitar de la sala');
+            boton.title = 'Se retiró / quitar de la sala';
+        } else {
+            boton.title = textoBoton;
+        }
+        const icono = document.createElement('i');
+        icono.className = iconoClase;
+        icono.setAttribute('aria-hidden', 'true');
+        boton.appendChild(icono);
+        if (textoBoton) {
+            boton.appendChild(document.createTextNode(' ' + textoBoton));
+        }
+        form.appendChild(boton);
+        return form;
+    }
+
+    function crearAcciones(turno) {
+        if (!turno.puede_llamar && !turno.puede_sacar) return null;
+
+        const acciones = document.createElement('div');
+        acciones.className = 'sala-acciones';
+
+        if (turno.puede_llamar) {
+            acciones.appendChild(crearFormSalida(
+                turno,
+                'atendiendo',
+                'Pasó a consultorio',
+                'fas fa-door-open',
+                'btn-success'
+            ));
+        }
+        if (turno.puede_sacar) {
+            acciones.appendChild(crearFormSalida(
+                turno,
+                'retirado',
+                '',
+                'fas fa-xmark',
+                'btn-danger'
+            ));
+        }
+        return acciones;
     }
 
     function crearItem(turno, posicion, resaltado) {
@@ -502,6 +647,9 @@
         if (resaltado) {
             item.appendChild(texto('span', 'badge badge-realizado', 'Más espera'));
         }
+
+        const acciones = crearAcciones(turno);
+        if (acciones) item.appendChild(acciones);
         return item;
     }
 
@@ -539,11 +687,23 @@
     function actualizarEstados(data) {
         const llegadas = data.llegadas || {};
         const esperas = data.esperas || {};
+        const salidas = data.salidas || {};
 
         document.querySelectorAll('.js-estado-llegada').forEach(function(estado) {
             const id = estado.dataset.turnoId;
             const hora = llegadas[id];
-            if (hora) {
+            const salida = salidas[id];
+
+            if (salida) {
+                const enConsultorio = salida.motivo === 'atendiendo';
+                estado.className = 'sala-estado js-estado-llegada ' +
+                    (enConsultorio
+                        ? 'sala-estado--en-consultorio'
+                        : 'sala-estado--retirado');
+                estado.textContent = enConsultorio
+                    ? 'En consultorio desde ' + salida.hora
+                    : 'Salió de la sala · ' + salida.hora + ' (se retiró)';
+            } else if (hora) {
                 estado.className = 'sala-estado js-estado-llegada sala-estado--en-sala';
                 estado.textContent = 'En sala de espera · llegó ' + hora +
                     ' · hace ' + (Number(esperas[id]) || 0) + ' min';
@@ -555,10 +715,13 @@
 
         document.querySelectorAll('.js-form-llegada').forEach(function(form) {
             const id = form.dataset.turnoId;
-            const enSala = Boolean(llegadas[id]);
+            const salida = salidas[id];
+            const enSala = Boolean(llegadas[id]) && !salida;
             const boton = form.querySelector('.js-btn-llegada');
             const etiqueta = form.querySelector('.js-btn-llegada-texto');
             const icono = form.querySelector('i');
+
+            form.style.display = salida ? 'none' : 'inline';
             if (!boton || !etiqueta) return;
 
             etiqueta.textContent = enSala ? 'Deshacer' : 'Llegó';
@@ -571,10 +734,20 @@
                     : 'fas fa-user-check';
             }
         });
+
+        document.querySelectorAll('.js-form-volvio').forEach(function(form) {
+            form.style.display = salidas[form.dataset.turnoId]
+                ? 'inline'
+                : 'none';
+        });
     }
 
     async function actualizar() {
-        if (document.visibilityState !== 'visible' || consultando) return;
+        if (
+            document.visibilityState !== 'visible'
+            || consultando
+            || dialogoAbierto
+        ) return;
         consultando = true;
         try {
             const respuesta = await fetch(url, {
@@ -591,6 +764,52 @@
             consultando = false;
         }
     }
+
+    async function enviarAccion(form) {
+        if (enviando) return;
+        enviando = true;
+        try {
+            const headers = {'X-Requested-With': 'XMLHttpRequest'};
+            if (csrfToken) headers['X-CSRFToken'] = csrfToken;
+
+            const respuesta = await fetch(form.action, {
+                method: 'POST',
+                body: new FormData(form),
+                credentials: 'same-origin',
+                headers: headers
+            });
+            if (respuesta.ok) {
+                await actualizar();
+            }
+        } catch (error) {
+            // Sin conexión: el formulario POST común sigue disponible.
+        } finally {
+            enviando = false;
+        }
+    }
+
+    contenido.addEventListener('submit', function(event) {
+        const form = event.target.closest('.js-form-salida');
+        if (!form) return;
+        event.preventDefault();
+
+        if (form.dataset.motivo === 'retirado') {
+            const nombre = form.dataset.paciente || 'este paciente';
+            dialogoAbierto = true;
+            let confirmado = false;
+            try {
+                confirmado = window.confirm(
+                    '¿Quitar a ' + nombre + ' de la sala de espera? ' +
+                    'Se registrará que se retiró.'
+                );
+            } finally {
+                dialogoAbierto = false;
+            }
+            if (!confirmado) return;
+        }
+
+        enviarAccion(form);
+    });
 
     window.setInterval(actualizar, 30000);
     document.addEventListener('visibilitychange', function() {

@@ -26,6 +26,31 @@ class FormaPago(models.TextChoices):
     COBERTURA = 'cobertura', 'Obra social / sin cargo'
 
 
+class MotivoSalida(models.TextChoices):
+    ATENDIENDO = 'atendiendo', 'Pasó a consultorio'
+    RETIRADO = 'retirado', 'Se retiró'
+
+
+ESTADOS_EN_SALA = (EstadoTurno.PENDIENTE, EstadoTurno.CONFIRMADO)
+
+
+def filtro_en_sala_espera():
+    """Regla única de sala de espera para consultas y anotaciones."""
+    return Q(
+        hora_llegada__isnull=False,
+        hora_salida__isnull=True,
+        estado__in=ESTADOS_EN_SALA,
+    )
+
+
+class TurnoQuerySet(models.QuerySet):
+    """Consultas reutilizables de turnos."""
+
+    def en_sala_espera(self):
+        """Turnos que llegaron y todavía no salieron de la sala de espera."""
+        return self.filter(filtro_en_sala_espera())
+
+
 class Turno(models.Model):
     paciente = models.ForeignKey(
         Paciente, on_delete=models.CASCADE, related_name='turnos'
@@ -88,6 +113,28 @@ class Turno(models.Model):
         related_name='llegadas_marcadas',
         verbose_name='Llegada marcada por',
     )
+    hora_salida = models.DateTimeField(
+        null=True,
+        blank=True,
+        db_index=True,
+        verbose_name='Hora de salida',
+    )
+    motivo_salida = models.CharField(
+        max_length=12,
+        choices=MotivoSalida.choices,
+        blank=True,
+        verbose_name='Motivo de salida',
+    )
+    salida_marcada_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='salidas_marcadas',
+        verbose_name='Salida marcada por',
+    )
+
+    objects = TurnoQuerySet.as_manager()
 
     creado = models.DateTimeField(auto_now_add=True)
     modificado = models.DateTimeField(auto_now=True)
@@ -125,13 +172,11 @@ class Turno(models.Model):
 
     @property
     def en_sala_espera(self):
-        """Llegó y todavía no fue atendido (ni cancelado/ausente)."""
+        """Llegó, no salió de la sala y todavía no fue atendido."""
         return (
             self.hora_llegada is not None
-            and self.estado in (
-                EstadoTurno.PENDIENTE,
-                EstadoTurno.CONFIRMADO,
-            )
+            and self.hora_salida is None
+            and self.estado in ESTADOS_EN_SALA
         )
 
     @property

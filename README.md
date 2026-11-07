@@ -202,6 +202,7 @@ Acceder en `http://localhost`
 | `ADMIN_URL` | No | Ruta del admin (default: `admin/`) |
 | `NOTAS_VISIBLES_PARA_RECEPCION` | No | `True`/`False` (default: `True`) |
 | `PAGOS_VISIBLES_PARA_PROFESIONAL` | No | `True`/`False` (default: `False`) |
+| `PROFESIONAL_PUEDE_LLAMAR_PACIENTE` | No | `True`/`False` (default: `True`). Permite al profesional marcar que su paciente pasó a consultorio |
 | `AXES_FAILURE_LIMIT` | No | Intentos fallidos antes de bloquear (default: `8`) |
 | `AXES_IP_HEADERS` | No | Encabezados para detectar la IP, separados por coma (default: `HTTP_X_FORWARDED_FOR,REMOTE_ADDR`) |
 | `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST` | Solo Docker local | Conexión a PostgreSQL del `docker-compose.yml` |

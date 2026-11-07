@@ -29,6 +29,9 @@ def roles(request):
             'es_profesional': False,
             'profesional_actual': None,
             'pagos_visibles_profesional': settings.PAGOS_VISIBLES_PARA_PROFESIONAL,
+            'profesional_puede_llamar_paciente': (
+                settings.PROFESIONAL_PUEDE_LLAMAR_PACIENTE
+            ),
             'solicitudes_pendientes_count': 0,
             'derivaciones_pendientes_count': 0,
         }
@@ -62,6 +65,9 @@ def roles(request):
         'es_profesional': es_profesional(user),
         'profesional_actual': profesional,
         'pagos_visibles_profesional': settings.PAGOS_VISIBLES_PARA_PROFESIONAL,
+        'profesional_puede_llamar_paciente': (
+            settings.PROFESIONAL_PUEDE_LLAMAR_PACIENTE
+        ),
         'solicitudes_pendientes_count': solicitudes_pendientes,
         'derivaciones_pendientes_count': derivaciones_pendientes,
     }

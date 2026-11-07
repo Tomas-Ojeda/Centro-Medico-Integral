@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib import messages
@@ -23,10 +24,13 @@ from datetime import datetime, time, timedelta
 from urllib.parse import urlencode
 import csv
 from .models import (
+    ESTADOS_EN_SALA,
     EstadoSolicitud,
     EstadoTurno,
+    MotivoSalida,
     SolicitudTurno,
     Turno,
+    filtro_en_sala_espera,
 )
 from .forms import (
     DescartarSolicitudForm,
@@ -42,11 +46,26 @@ from auditoria.mixins import AuditoriaMixin
 from consultorio_salto.permisos import (
     RecepcionOProfesionalMixin,
     SoloRecepcionMixin,
+    es_recepcion,
 )
 
 
-ESTADOS_EN_SALA = (EstadoTurno.PENDIENTE, EstadoTurno.CONFIRMADO)
 CAMPOS_FILTRO_AGENDA = ('especialidad', 'profesional', 'q', 'orden', 'vista')
+
+
+def puede_llamar_paciente(user, turno, profesional):
+    """Permiso para marcar que el paciente pasó a consultorio.
+
+    Recepción/Admin siempre pueden. El profesional solo respecto de sus
+    propios turnos y cuando el setting lo habilita.
+    """
+    if es_recepcion(user):
+        return True
+    return bool(
+        profesional
+        and settings.PROFESIONAL_PUEDE_LLAMAR_PACIENTE
+        and turno.profesional_id == profesional.pk
+    )
 
 
 def aplicar_filtros_agenda(queryset, request, profesional):
@@ -78,10 +97,7 @@ def ordenar_turnos(queryset, orden):
     if orden != 'llegada':
         return queryset.order_by('fecha_hora')
 
-    en_sala = Q(
-        hora_llegada__isnull=False,
-        estado__in=ESTADOS_EN_SALA,
-    )
+    en_sala = filtro_en_sala_espera()
     return queryset.annotate(
         _prioridad_sala=Case(
             When(en_sala, then=Value(0)),
@@ -189,6 +205,15 @@ class TurnoAgendaView(RecepcionOProfesionalMixin, LoginRequiredMixin, ListView):
         turnos_agenda = list(ctx['turnos'])
         ctx['turnos'] = turnos_agenda
         ctx['total_dia'] = len(turnos_agenda)
+
+        puede_sacar = es_recepcion(self.request.user)
+        for turno in turnos_agenda:
+            turno.puede_llamar = puede_llamar_paciente(
+                self.request.user,
+                turno,
+                self.profesional,
+            )
+            turno.puede_sacar = puede_sacar
 
         inicio, fin = rango_del_dia(self.fecha_seleccionada)
         todos_dia = Turno.objects.filter(
@@ -346,6 +371,8 @@ class SalaEsperaJSONView(
         por_profesional = {}
         llegadas = {}
         esperas = {}
+        salidas = {}
+        puede_sacar = es_recepcion(request.user)
 
         for turno in turnos:
             hora_llegada = timezone.localtime(turno.hora_llegada)
@@ -356,6 +383,14 @@ class SalaEsperaJSONView(
             )
             llegadas[str(turno.pk)] = hora_texto
             esperas[str(turno.pk)] = minutos
+
+            if turno.hora_salida is not None:
+                salidas[str(turno.pk)] = {
+                    'hora': timezone.localtime(
+                        turno.hora_salida
+                    ).strftime('%H:%M'),
+                    'motivo': turno.motivo_salida,
+                }
 
             if not turno.en_sala_espera:
                 continue
@@ -376,6 +411,13 @@ class SalaEsperaJSONView(
                     f'{turno.profesional.apellido}, '
                     f'{turno.profesional.nombre}'
                 ),
+                'puede_llamar': puede_llamar_paciente(
+                    request.user,
+                    turno,
+                    self.profesional,
+                ),
+                'puede_sacar': puede_sacar,
+                'salida_url': reverse('turnos:salida', args=[turno.pk]),
             }
             cola.append(item)
 
@@ -397,6 +439,7 @@ class SalaEsperaJSONView(
             'grupos': grupos,
             'llegadas': llegadas,
             'esperas': esperas,
+            'salidas': salidas,
             'total': len(cola),
         })
 
@@ -782,6 +825,9 @@ class MarcarLlegadaView(
         if turno.hora_llegada is None:
             turno.hora_llegada = timezone.now()
             turno.llegada_marcada_por = request.user
+            turno.hora_salida = None
+            turno.motivo_salida = ''
+            turno.salida_marcada_por = None
             accion = (
                 f'Llegada marcada a las '
                 f'{timezone.localtime(turno.hora_llegada).strftime("%H:%M")}.'
@@ -789,11 +835,17 @@ class MarcarLlegadaView(
         else:
             turno.hora_llegada = None
             turno.llegada_marcada_por = None
+            turno.hora_salida = None
+            turno.motivo_salida = ''
+            turno.salida_marcada_por = None
             accion = 'Llegada deshecha.'
 
         turno.save(update_fields=[
             'hora_llegada',
             'llegada_marcada_por',
+            'hora_salida',
+            'motivo_salida',
+            'salida_marcada_por',
             'modificado',
         ])
         self.registrar_acceso(request, turno, detalle=accion)
@@ -809,6 +861,188 @@ class MarcarLlegadaView(
                 'Llegada registrada. El paciente está en sala de espera.',
             )
         return redirect(url_de_retorno(request, destino))
+
+
+class SalidaSalaView(
+    RecepcionOProfesionalMixin,
+    LoginRequiredMixin,
+    AuditoriaMixin,
+    View,
+):
+    """Registra que el paciente pasó a consultorio o se retiró de la sala."""
+
+    accion = 'editar'
+    modelo = 'Turno'
+
+    def post(self, request, pk):
+        consulta = Turno.objects.select_related('paciente', 'profesional')
+        if self.profesional:
+            # Un turno de otro profesional no existe para este usuario.
+            consulta = consulta.filter(profesional=self.profesional)
+        turno = get_object_or_404(consulta, pk=pk)
+
+        fecha_turno = timezone.localtime(turno.fecha_hora).date()
+        destino = agenda_con_filtros(request, fecha_turno)
+
+        def volver():
+            return redirect(url_de_retorno(request, destino))
+
+        motivo = request.POST.get('motivo', '')
+
+        if self.profesional:
+            if not settings.PROFESIONAL_PUEDE_LLAMAR_PACIENTE:
+                raise PermissionDenied(
+                    'No tenés permiso para llamar pacientes desde la agenda.'
+                )
+            if motivo != MotivoSalida.ATENDIENDO:
+                raise PermissionDenied(
+                    'Solo recepción puede registrar que el paciente se retiró.'
+                )
+        elif motivo not in MotivoSalida.values:
+            messages.error(
+                request,
+                'El motivo de salida indicado no es válido.',
+            )
+            return volver()
+
+        if fecha_turno != timezone.localdate():
+            messages.error(
+                request,
+                'Solo se puede registrar la salida el día del turno.',
+            )
+            return volver()
+
+        if turno.estado not in ESTADOS_EN_SALA:
+            messages.error(
+                request,
+                'Solo se puede registrar la salida de turnos pendientes '
+                'o confirmados.',
+            )
+            return volver()
+
+        if turno.hora_llegada is None:
+            messages.error(
+                request,
+                'El paciente todavía no llegó a la sala de espera.',
+            )
+            return volver()
+
+        if turno.hora_salida is not None:
+            messages.error(
+                request,
+                'El paciente ya había salido de la sala de espera.',
+            )
+            return volver()
+
+        ahora = timezone.now()
+        turno.hora_salida = ahora
+        turno.motivo_salida = motivo
+        turno.salida_marcada_por = request.user
+        turno.save(update_fields=[
+            'hora_salida',
+            'motivo_salida',
+            'salida_marcada_por',
+            'modificado',
+        ])
+
+        detalle = (
+            f'Salida de la sala: {turno.get_motivo_salida_display()} '
+            f'a las {timezone.localtime(ahora).strftime("%H:%M")}.'
+        )
+        self.registrar_acceso(request, turno, detalle=detalle)
+
+        if motivo == MotivoSalida.ATENDIENDO:
+            messages.success(request, 'El paciente pasó a consultorio.')
+        else:
+            messages.success(
+                request,
+                'El paciente se retiró de la sala de espera.',
+            )
+        return volver()
+
+
+class VolvioSalaView(
+    SoloRecepcionMixin,
+    LoginRequiredMixin,
+    AuditoriaMixin,
+    View,
+):
+    """Reingresa a la sala a un paciente que había salido."""
+
+    accion = 'editar'
+    modelo = 'Turno'
+
+    def post(self, request, pk):
+        turno = get_object_or_404(
+            Turno.objects.select_related('paciente', 'profesional'),
+            pk=pk,
+        )
+
+        fecha_turno = timezone.localtime(turno.fecha_hora).date()
+        destino = agenda_con_filtros(request, fecha_turno)
+
+        def volver():
+            return redirect(url_de_retorno(request, destino))
+
+        if fecha_turno != timezone.localdate():
+            messages.error(
+                request,
+                'Solo se puede reingresar a la sala el día del turno.',
+            )
+            return volver()
+
+        if turno.estado not in ESTADOS_EN_SALA:
+            messages.error(
+                request,
+                'Solo se puede reingresar a la sala un turno pendiente '
+                'o confirmado.',
+            )
+            return volver()
+
+        if turno.hora_llegada is None:
+            messages.error(
+                request,
+                'El paciente todavía no llegó a la sala de espera.',
+            )
+            return volver()
+
+        if turno.hora_salida is None:
+            messages.error(
+                request,
+                'El paciente no había salido de la sala de espera.',
+            )
+            return volver()
+
+        llegada_anterior = timezone.localtime(
+            turno.hora_llegada
+        ).strftime('%H:%M')
+        ahora = timezone.now()
+        turno.hora_llegada = ahora
+        turno.llegada_marcada_por = request.user
+        turno.hora_salida = None
+        turno.motivo_salida = ''
+        turno.salida_marcada_por = None
+        turno.save(update_fields=[
+            'hora_llegada',
+            'llegada_marcada_por',
+            'hora_salida',
+            'motivo_salida',
+            'salida_marcada_por',
+            'modificado',
+        ])
+
+        detalle = (
+            'Volvió a la sala de espera. '
+            f'Llegada anterior: {llegada_anterior}. '
+            f'Nueva llegada: {timezone.localtime(ahora).strftime("%H:%M")}.'
+        )
+        self.registrar_acceso(request, turno, detalle=detalle)
+
+        messages.success(
+            request,
+            'El paciente volvió a la sala de espera.',
+        )
+        return volver()
 
 
 class RegistrarPagoView(SoloRecepcionMixin, LoginRequiredMixin, AuditoriaMixin, View):

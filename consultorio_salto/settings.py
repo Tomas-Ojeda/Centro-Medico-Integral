@@ -175,3 +175,10 @@ NOTAS_VISIBLES_PARA_RECEPCION = (
 PAGOS_VISIBLES_PARA_PROFESIONAL = (
     os.environ.get('PAGOS_VISIBLES_PARA_PROFESIONAL', 'False') == 'True'
 )
+
+# ─── Sala de espera ────────────────────────────────────────────
+# Si es True, el profesional puede marcar que su propio paciente pasó a
+# consultorio desde la agenda. Recepción/Admin siempre pueden hacerlo.
+PROFESIONAL_PUEDE_LLAMAR_PACIENTE = (
+    os.environ.get('PROFESIONAL_PUEDE_LLAMAR_PACIENTE', 'True') == 'True'
+)
