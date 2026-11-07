@@ -180,6 +180,22 @@ class Turno(models.Model):
         )
 
     @property
+    def salio_de_sala(self):
+        """Tiene una salida registrada y el turno sigue en curso."""
+        return (
+            self.hora_salida is not None
+            and self.estado in ESTADOS_EN_SALA
+        )
+
+    @property
+    def en_consultorio(self):
+        """Está en consultorio y el turno todavía no terminó."""
+        return (
+            self.salio_de_sala
+            and self.motivo_salida == MotivoSalida.ATENDIENDO
+        )
+
+    @property
     def espera_minutos(self):
         """Minutos transcurridos desde la llegada, o None si no llegó."""
         if self.hora_llegada is None:

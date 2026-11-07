@@ -422,14 +422,14 @@
 
             {% if es_hoy and turno.estado == 'pendiente' or es_hoy and turno.estado == 'confirmado' %}
             <div class="sala-acciones">
-                <span class="sala-estado js-estado-llegada {% if turno.hora_salida %}{% if turno.motivo_salida == 'atendiendo' %}sala-estado--en-consultorio{% else %}sala-estado--retirado{% endif %}{% elif turno.en_sala_espera %}sala-estado--en-sala{% else %}sala-estado--no-llego{% endif %}"
+                <span class="sala-estado js-estado-llegada {% if turno.salio_de_sala %}{% if turno.en_consultorio %}sala-estado--en-consultorio{% else %}sala-estado--retirado{% endif %}{% elif turno.en_sala_espera %}sala-estado--en-sala{% else %}sala-estado--no-llego{% endif %}"
                       data-turno-id="{{ turno.pk }}">
-                    {% if turno.hora_salida %}{% if turno.motivo_salida == 'atendiendo' %}En consultorio desde {{ turno.hora_salida|date:"H:i" }}{% else %}Salió de la sala · {{ turno.hora_salida|date:"H:i" }} (se retiró){% endif %}{% elif turno.en_sala_espera %}En sala de espera · llegó {{ turno.hora_llegada|date:"H:i" }} · hace {{ turno.espera_minutos }} min{% else %}No llegó{% endif %}
+                    {% if turno.salio_de_sala %}{% if turno.en_consultorio %}En consultorio desde {{ turno.hora_salida|date:"H:i" }}{% else %}Salió de la sala · {{ turno.hora_salida|date:"H:i" }} (se retiró){% endif %}{% elif turno.en_sala_espera %}En sala de espera · llegó {{ turno.hora_llegada|date:"H:i" }} · hace {{ turno.espera_minutos }} min{% else %}No llegó{% endif %}
                 </span>
                 {% if es_recepcion %}
                 <form method="post" action="{% url 'turnos:llegada' turno.pk %}"
                       class="js-form-llegada" data-turno-id="{{ turno.pk }}"
-                      style="display:{% if turno.hora_salida %}none{% else %}inline{% endif %};">
+                      style="display:{% if turno.salio_de_sala %}none{% else %}inline{% endif %};">
                     {% csrf_token %}
                     <input type="hidden" name="next" value="{{ request.get_full_path }}">
                     <button type="submit"
@@ -439,9 +439,11 @@
                         <span class="js-btn-llegada-texto">{% if turno.en_sala_espera %}Deshacer{% else %}Llegó{% endif %}</span>
                     </button>
                 </form>
+                {% endif %}
+                {% if turno.puede_volver %}
                 <form method="post" action="{% url 'turnos:volvio' turno.pk %}"
                       class="js-form-volvio" data-turno-id="{{ turno.pk }}"
-                      style="display:{% if turno.hora_salida %}inline{% else %}none{% endif %};">
+                      style="display:{% if turno.salio_de_sala %}inline{% else %}none{% endif %};">
                     {% csrf_token %}
                     <input type="hidden" name="next" value="{{ request.get_full_path }}">
                     <button type="submit" class="btn btn-sm btn-outline"

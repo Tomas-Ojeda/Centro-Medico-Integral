@@ -151,16 +151,48 @@ class SalidaPermisosTests(BaseSalidaTests):
         self.turno.refresh_from_db()
         self.assertIsNone(self.turno.hora_salida)
 
-    def test_profesional_no_puede_marcar_volvio(self):
+    def test_profesional_puede_marcar_volvio_su_turno(self):
         self.marcar_llegada(self.turno)
         self.salir(self.turno, MotivoSalida.ATENDIENDO)
         self.client.force_login(self.user_profesional)
 
         response = self.client.post(self.url_volvio(self.turno))
 
-        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.status_code, 302)
         self.turno.refresh_from_db()
-        self.assertIsNotNone(self.turno.hora_salida)
+        self.assertIsNone(self.turno.hora_salida)
+        self.assertEqual(self.turno.motivo_salida, '')
+        self.assertIsNone(self.turno.salida_marcada_por)
+        self.assertEqual(self.turno.llegada_marcada_por, self.user_profesional)
+        self.assertTrue(self.turno.en_sala_espera)
+
+        log = LogAcceso.objects.filter(
+            modelo='Turno',
+            objeto_id=self.turno.pk,
+            detalle__contains='Volvió a la sala',
+        ).first()
+        self.assertIsNotNone(log)
+        self.assertEqual(log.usuario, self.user_profesional)
+
+    def test_profesional_recibe_404_al_volver_turno_ajeno(self):
+        turno_ajeno = self.crear_turno(
+            paciente=self.otro_paciente,
+            profesional=self.otro_profesional,
+            hora=11,
+        )
+        self.marcar_llegada(turno_ajeno)
+        self.salir(turno_ajeno, MotivoSalida.ATENDIENDO)
+        self.client.force_login(self.user_profesional)
+
+        response = self.client.post(self.url_volvio(turno_ajeno))
+
+        self.assertEqual(response.status_code, 404)
+        turno_ajeno.refresh_from_db()
+        self.assertIsNotNone(turno_ajeno.hora_salida)
+        self.assertEqual(
+            turno_ajeno.motivo_salida,
+            MotivoSalida.ATENDIENDO,
+        )
 
 
 class SalidaValidacionesTests(BaseSalidaTests):
@@ -387,6 +419,33 @@ class SalidaColaTests(BaseSalidaTests):
         self.assertFalse(item['puede_llamar'])
         self.assertFalse(item['puede_sacar'])
 
+    def test_panel_profesional_muestra_volvio_en_su_turno(self):
+        self.marcar_llegada(self.turno)
+        self.salir(self.turno, MotivoSalida.ATENDIENDO)
+        self.client.force_login(self.user_profesional)
+
+        response = self.client.get(
+            reverse('turnos:agenda'),
+            {'fecha': self.hoy.isoformat()},
+        )
+
+        self.assertContains(response, 'js-form-volvio')
+        self.assertContains(response, self.url_volvio(self.turno))
+
+    @override_settings(PROFESIONAL_PUEDE_LLAMAR_PACIENTE=False)
+    def test_panel_profesional_puede_volver_aunque_no_llame_pacientes(self):
+        self.marcar_llegada(self.turno)
+        self.salir(self.turno, MotivoSalida.ATENDIENDO)
+        self.client.force_login(self.user_profesional)
+
+        response = self.client.get(
+            reverse('turnos:agenda'),
+            {'fecha': self.hoy.isoformat()},
+        )
+
+        self.assertNotContains(response, 'data-motivo="atendiendo"')
+        self.assertContains(response, 'js-form-volvio')
+
     def test_json_profesional_solo_puede_llamar(self):
         self.marcar_llegada(self.turno)
         self.client.force_login(self.user_profesional)
@@ -460,6 +519,98 @@ class SalidaColaTests(BaseSalidaTests):
                 objeto_id=self.turno.pk,
                 detalle__contains='Llegada deshecha',
             ).exists()
+        )
+
+
+class SalidaAlCerrarTurnoTests(BaseSalidaTests):
+    def setUp(self):
+        super().setUp()
+        self.client.force_login(self.recepcion)
+
+    def test_estados_terminados_limpian_la_marca_de_salida(self):
+        estados = (
+            EstadoTurno.REALIZADO,
+            EstadoTurno.AUSENTE,
+            EstadoTurno.CANCELADO,
+        )
+        for indice, estado in enumerate(estados, start=10):
+            with self.subTest(estado=estado):
+                turno = self.crear_turno(hora=indice)
+                self.marcar_llegada(turno)
+                self.salir(turno, MotivoSalida.ATENDIENDO)
+                turno.refresh_from_db()
+                self.assertTrue(turno.en_consultorio)
+                hora_salida = timezone.localtime(
+                    turno.hora_salida
+                ).strftime('%H:%M')
+
+                response = self.client.post(
+                    reverse(
+                        'turnos:cambiar_estado',
+                        args=[turno.pk, estado],
+                    )
+                )
+
+                self.assertEqual(response.status_code, 302)
+                turno.refresh_from_db()
+                self.assertEqual(turno.estado, estado)
+                self.assertIsNone(turno.hora_salida)
+                self.assertEqual(turno.motivo_salida, '')
+                self.assertIsNone(turno.salida_marcada_por)
+                self.assertFalse(turno.salio_de_sala)
+                self.assertFalse(turno.en_consultorio)
+                self.assertFalse(turno.en_sala_espera)
+
+                log = LogAcceso.objects.filter(
+                    modelo='Turno',
+                    objeto_id=turno.pk,
+                    detalle__contains='Se quitó la marca de la sala',
+                ).first()
+                self.assertIsNotNone(log)
+
+                agenda = self.client.get(
+                    reverse('turnos:agenda'),
+                    {'fecha': self.hoy.isoformat()},
+                )
+                self.assertNotContains(
+                    agenda,
+                    f'En consultorio desde {hora_salida}',
+                )
+                self.assertNotContains(
+                    agenda,
+                    f'Salió de la sala · {hora_salida}',
+                )
+
+                dashboard = self.client.get(reverse('dashboard:index'))
+                self.assertNotContains(dashboard, 'En consultorio')
+
+    def test_registros_viejos_terminados_no_muestran_en_consultorio(self):
+        self.marcar_llegada(self.turno)
+        self.salir(self.turno, MotivoSalida.ATENDIENDO)
+        self.turno.refresh_from_db()
+        hora_salida = timezone.localtime(
+            self.turno.hora_salida
+        ).strftime('%H:%M')
+        # Simula datos anteriores a la limpieza automática: el turno quedó
+        # realizado pero conserva la salida marcada como "atendiendo".
+        Turno.objects.filter(pk=self.turno.pk).update(
+            estado=EstadoTurno.REALIZADO,
+        )
+
+        self.turno.refresh_from_db()
+        self.assertFalse(self.turno.salio_de_sala)
+        self.assertFalse(self.turno.en_consultorio)
+
+        dashboard = self.client.get(reverse('dashboard:index'))
+        self.assertNotContains(dashboard, 'En consultorio')
+
+        agenda = self.client.get(
+            reverse('turnos:agenda'),
+            {'fecha': self.hoy.isoformat()},
+        )
+        self.assertNotContains(
+            agenda,
+            f'En consultorio desde {hora_salida}',
         )
 
 

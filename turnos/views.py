@@ -214,6 +214,13 @@ class TurnoAgendaView(RecepcionOProfesionalMixin, LoginRequiredMixin, ListView):
                 self.profesional,
             )
             turno.puede_sacar = puede_sacar
+            turno.puede_volver = bool(
+                puede_sacar
+                or (
+                    self.profesional
+                    and turno.profesional_id == self.profesional.pk
+                )
+            )
 
         inicio, fin = rango_del_dia(self.fecha_seleccionada)
         todos_dia = Turno.objects.filter(
@@ -384,7 +391,7 @@ class SalaEsperaJSONView(
             llegadas[str(turno.pk)] = hora_texto
             esperas[str(turno.pk)] = minutos
 
-            if turno.hora_salida is not None:
+            if turno.salio_de_sala:
                 salidas[str(turno.pk)] = {
                     'hora': timezone.localtime(
                         turno.hora_salida
@@ -769,16 +776,36 @@ class CambiarEstadoTurnoView(
             anterior = turno.estado
             if anterior != estado:
                 turno.estado = estado
-                turno.save(update_fields=['estado', 'modificado'])
-                self.registrar_acceso(
-                    request,
-                    turno,
-                    detalle=(
-                        'Estado cambiado de '
-                        f'{dict(EstadoTurno.choices).get(anterior, anterior)} '
-                        f'a {dict(EstadoTurno.choices).get(estado, estado)}.'
-                    ),
+                campos = ['estado', 'modificado']
+                detalle = (
+                    'Estado cambiado de '
+                    f'{dict(EstadoTurno.choices).get(anterior, anterior)} '
+                    f'a {dict(EstadoTurno.choices).get(estado, estado)}.'
                 )
+
+                # Al cerrar el turno ya no corresponde mostrar que el
+                # paciente sigue en consultorio o en la sala de espera.
+                if estado not in ESTADOS_EN_SALA:
+                    habia_salida = bool(
+                        turno.hora_salida
+                        or turno.motivo_salida
+                        or turno.salida_marcada_por_id
+                    )
+                    turno.hora_salida = None
+                    turno.motivo_salida = ''
+                    turno.salida_marcada_por = None
+                    campos += [
+                        'hora_salida',
+                        'motivo_salida',
+                        'salida_marcada_por',
+                    ]
+                    if habia_salida:
+                        detalle += (
+                            ' Se quitó la marca de la sala de espera.'
+                        )
+
+                turno.save(update_fields=campos)
+                self.registrar_acceso(request, turno, detalle=detalle)
         else:
             messages.error(request, 'El estado indicado no es válido.')
 
@@ -962,21 +989,25 @@ class SalidaSalaView(
 
 
 class VolvioSalaView(
-    SoloRecepcionMixin,
+    RecepcionOProfesionalMixin,
     LoginRequiredMixin,
     AuditoriaMixin,
     View,
 ):
-    """Reingresa a la sala a un paciente que había salido."""
+    """Reingresa a la sala a un paciente que había salido.
+
+    Recepción/Admin pueden hacerlo con cualquier turno y el profesional
+    únicamente con sus propios turnos (los ajenos responden 404).
+    """
 
     accion = 'editar'
     modelo = 'Turno'
 
     def post(self, request, pk):
-        turno = get_object_or_404(
-            Turno.objects.select_related('paciente', 'profesional'),
-            pk=pk,
-        )
+        consulta = Turno.objects.select_related('paciente', 'profesional')
+        if self.profesional:
+            consulta = consulta.filter(profesional=self.profesional)
+        turno = get_object_or_404(consulta, pk=pk)
 
         fecha_turno = timezone.localtime(turno.fecha_hora).date()
         destino = agenda_con_filtros(request, fecha_turno)
